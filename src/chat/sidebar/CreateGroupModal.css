@@ -1,0 +1,150 @@
+/* ===============================
+   🌑 MODAL BACKDROP
+   =============================== */
+.group-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+/* ===============================
+   🧱 MODAL CONTAINER
+   =============================== */
+.group-modal {
+  width: 360px;
+  background: #020617;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: #f8fafc;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+/* ===============================
+   🏷️ TITLE
+   =============================== */
+.group-modal h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ===============================
+   ✏️ INPUTS
+   =============================== */
+.group-modal input {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.group-modal input::placeholder {
+  color: #94a3b8;
+}
+
+.group-modal input:focus {
+  outline: none;
+  background: rgba(124, 58, 237, 0.12);
+}
+
+/* ===============================
+   👥 USER LIST
+   =============================== */
+.group-users {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+/* scrollbar (same as sidebar) */
+.group-users::-webkit-scrollbar {
+  width: 6px;
+}
+
+.group-users::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+}
+
+.group-users::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ===============================
+   👤 USER ROW
+   =============================== */
+.group-user {
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.group-user:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.group-user.selected {
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.9),
+    rgba(56, 189, 248, 0.9)
+  );
+  color: white;
+}
+
+/* ===============================
+   🔘 ACTION BUTTONS
+   =============================== */
+.group-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.group-actions button {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* Cancel */
+.group-actions button:first-child {
+  background: transparent;
+  color: #94a3b8;
+}
+
+.group-actions button:first-child:hover {
+  color: #f8fafc;
+}
+
+/* Create */
+.group-actions button:last-child {
+  background: linear-gradient(135deg, #7c3aed, #38bdf8);
+  color: white;
+}
+
+.group-actions button:last-child:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

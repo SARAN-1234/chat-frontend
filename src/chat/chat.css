@@ -1,0 +1,404 @@
+/* ======================================================
+   🌌 GLOBAL THEME TOKENS
+   ====================================================== */
+:root {
+  --bg-main: #020617;
+  --bg-soft: rgba(255, 255, 255, 0.06);
+  --bg-hover: rgba(255, 255, 255, 0.1);
+  --border: #1e293b;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --accent: #7c3aed;
+  --accent-2: #38bdf8;
+  --success: #22c55e;
+
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+}
+
+/* ======================================================
+   🧱 PAGE LAYOUT
+   ====================================================== */
+.chat-page {
+  height: 100vh;
+  display: flex;
+  background: radial-gradient(circle at top left, #020617, #000);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, sans-serif;
+   overflow: hidden;
+}
+
+/* ======================================================
+   📚 SIDEBAR
+   ====================================================== */
+.sidebar {
+  width: 280px;
+    height: 100vh;        /* 🔥 STOP infinite layout growth */
+  overflow: hidden;
+  background: linear-gradient(180deg, #020617, #020617cc);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ======================================================
+   🔍 SEARCH INPUT
+   ====================================================== */
+.user-search {
+  width: 90%;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: 0.2s ease;
+}
+
+.user-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+/* ======================================================
+   📂 SIDEBAR SECTIONS
+   ====================================================== */
+.sidebar-section {
+  margin-top: 12px;
+}
+
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin: 12px 0 8px;
+}
+
+/* ======================================================
+   👤 CHAT ROW
+   ====================================================== */
+.user {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.user:hover {
+  background: var(--bg-hover);
+}
+
+.user.active {
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.25),
+    rgba(56, 189, 248, 0.2)
+  );
+}
+
+/* ======================================================
+   🧾 USER INFO
+   ====================================================== */
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 75%;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.email {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ======================================================
+   🟢 ONLINE STATUS
+   ====================================================== */
+.status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.online {
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+}
+
+.offline {
+  background: var(--text-muted);
+}
+
+/* ======================================================
+   ⏰ CHAT TIME
+   ====================================================== */
+.chat-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  margin-left: 10px;
+}
+
+/* ======================================================
+   💬 CHAT MAIN
+   ====================================================== */
+.chat-main {
+  flex: 1;
+  display: flex;
+  position: relative;
+}
+
+/* ======================================================
+   💬 CHAT WINDOW
+   ====================================================== */
+.chat-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.chat-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* ======================================================
+   📩 MESSAGES AREA
+   ====================================================== */
+.messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ======================================================
+   💬 MESSAGE ROW
+   ====================================================== */
+.message-row {
+  display: flex;
+}
+
+.message-row.me {
+  justify-content: flex-end;
+}
+
+.message-row.other {
+  justify-content: flex-start;
+}
+
+/* ======================================================
+   🫧 MESSAGE BUBBLE
+   ====================================================== */
+.message-bubble {
+  max-width: 65%;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.message-row.me .message-bubble {
+  background: linear-gradient(135deg, #7c3aed, #11123a);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.message-row.other .message-bubble {
+ background: linear-gradient(135deg, #e8e9eb, #7e7e89);
+  color: #1f2023;
+  border-bottom-left-radius: 4px;
+}
+
+/* ======================================================
+   🕒 MESSAGE META
+   ====================================================== */
+.message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.message-time {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.message-status {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.message-status.read {
+  color: #34b7f1;
+}
+
+/* ======================================================
+   ✍️ MESSAGE INPUT
+   ====================================================== */
+.message-input {
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+}
+
+.message-input input {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--bg-soft);
+  color: var(--text-primary);
+}
+
+.message-input input::placeholder {
+  color: var(--text-muted);
+}
+
+.message-input button {
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #7c3aed, #38bdf8);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ======================================================
+   🤖 AI EMAIL PANEL
+   ====================================================== */
+.ai-email-box {
+  width: 360px;
+  background: rgba(2, 6, 23, 0.95);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  backdrop-filter: blur(8px);
+}
+
+.ai-email-box h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ai-email-box input,
+.ai-email-box textarea {
+  width: 100%;
+  background: var(--bg-soft);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  color: white;
+}
+
+.ai-email-box textarea {
+  resize: none;
+  min-height: 90px;
+}
+
+.ai-email-box button {
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: linear-gradient(135deg, #7c3aed, #38bdf8);
+  color: white;
+  cursor: pointer;
+}
+
+.ai-email-box button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ======================================================
+   🚫 EMPTY STATES
+   ====================================================== */
+.no-users {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 12px;
+}
+/* ======================================================
+   🔥 SIDEBAR SCROLL FIX (CRITICAL)
+   ====================================================== */
+
+.sidebar-scroll {
+  flex: 1;              /* takes remaining space */
+  min-height: 0;        /* 🔥 REQUIRED for flexbox scroll */
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  padding-right: 6px;
+
+  /* performance & stability */
+  overscroll-behavior: contain;
+  contain: layout paint;
+  will-change: scroll-position;
+}
+
+/* Optional: smooth scrollbar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}

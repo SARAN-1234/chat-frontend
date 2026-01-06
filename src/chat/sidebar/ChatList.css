@@ -1,0 +1,105 @@
+/* ===============================
+   📂 SIDEBAR CHAT LIST
+   =============================== */
+
+.sidebar-section {
+  padding: 8px 0;
+  min-height: 0; /* 🔥 CRITICAL FIX */
+}
+
+/* Section title */
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #9ca3af;
+  padding: 6px 14px;
+}
+
+/* Empty state */
+.no-users {
+  font-size: 13px;
+  color: #9ca3af;
+  padding: 14px;
+  text-align: center;
+}
+
+/* ===============================
+   👤 CHAT ROW
+   =============================== */
+
+.user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px;
+  cursor: pointer;
+  border-radius: 8px;
+  
+  transition: background-color 0.15s ease;
+}
+
+.user:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.user.active {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+/* ===============================
+   🧾 USER INFO
+   =============================== */
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 75%;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f9fafb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.email {
+  font-size: 13px;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===============================
+   ⏰ MESSAGE TIME
+   =============================== */
+
+.chat-time {
+  font-size: 11px;
+  color: #9ca3af;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+/* ===============================
+   📱 MOBILE OPTIMIZATION
+   =============================== */
+
+@media (max-width: 768px) {
+  .user {
+    padding: 10px;
+  }
+
+  .username {
+    font-size: 13px;
+  }
+
+  .email {
+    font-size: 12px;
+  }
+}

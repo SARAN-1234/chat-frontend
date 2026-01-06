@@ -1,0 +1,45 @@
+.group-info-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 1000;
+}
+
+.group-info {
+  width: 300px;
+  background: #020617;
+  color: white;
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.group-members {
+  margin-top: 12px;
+}
+
+.group-member {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.admin-badge {
+  font-size: 10px;
+  background: #7c3aed;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.leave-btn {
+  margin-top: 20px;
+  width: 100%;
+  padding: 10px;
+  background: #ef4444;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+}

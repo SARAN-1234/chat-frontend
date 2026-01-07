@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const http = axios.create({
-  baseURL: "http://localhost:8080/api", // backend context-path
+  baseURL: "https://chat-backend-fup5.onrender.com/api",
 });
 
 /* ===== REQUEST INTERCEPTOR ===== */

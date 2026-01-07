@@ -1,30 +1,14 @@
-/* =====================================================
-   WEBSOCKET SERVICE – STOMP (FINAL, FIXED)
-   -----------------------------------------------------
-   ✅ Single STOMP client instance
-   ✅ No duplicate subscriptions
-   ✅ No onConnect queue explosion
-   ✅ No backend REST loops
-   ✅ E2EE safe
-   ===================================================== */
-
 import { Client } from "@stomp/stompjs";
 
 let client = null;
 
-// 🔹 ACTIVE SUBSCRIPTIONS
 let chatSubscription = null;
 let presenceSubscription = null;
 let callSubscription = null;
 
-// 🔥 FIX: Use Set instead of Array (NO duplicates)
 let onConnectedQueue = new Set();
 
-/* ===============================
-   🔌 CONNECT
-   =============================== */
 export function connectWebSocket(onConnected) {
-  // ❌ Prevent duplicate clients
   if (client?.active || client?.connected) {
     console.warn("⚠️ STOMP already active");
     return;
@@ -37,13 +21,13 @@ export function connectWebSocket(onConnected) {
   }
 
   client = new Client({
-    brokerURL: "ws://localhost:8080/api/ws",
+    brokerURL: "wss://chat-backend-fup5.onrender.com/api/ws",
 
     connectHeaders: {
       Authorization: `Bearer ${token}`,
     },
 
-    reconnectDelay: 0, // manual reconnect only
+    reconnectDelay: 0,
     heartbeatIncoming: 10000,
     heartbeatOutgoing: 10000,
 
@@ -52,7 +36,6 @@ export function connectWebSocket(onConnected) {
     onConnect: () => {
       console.log("✅ STOMP CONNECTED");
 
-      // 🔥 Flush queued callbacks ONCE
       onConnectedQueue.forEach((cb) => cb());
       onConnectedQueue.clear();
 
@@ -75,9 +58,6 @@ export function isStompConnected() {
   return client?.connected === true;
 }
 
-/* ===============================
-   💬 CHAT SUBSCRIBE (SAFE)
-   =============================== */
 export function subscribeToChat(roomId, onMessage) {
   if (!roomId) return;
 
@@ -86,25 +66,18 @@ export function subscribeToChat(roomId, onMessage) {
 
     chatSubscription = client.subscribe(
       `/topic/chat/${roomId}`,
-      (msg) => {
-        const parsed = JSON.parse(msg.body);
-        console.log("📨 WS CHAT MESSAGE:", parsed);
-        onMessage(parsed);
-      }
+      (msg) => onMessage(JSON.parse(msg.body))
     );
   };
 
   if (!isStompConnected()) {
-    onConnectedQueue.add(subscribe); // 🔥 NO duplicates
+    onConnectedQueue.add(subscribe);
     return;
   }
 
   subscribe();
 }
 
-/* ===============================
-   🟢 PRESENCE SUBSCRIBE
-   =============================== */
 export function subscribeToPresence(onPresence) {
   const subscribe = () => {
     presenceSubscription?.unsubscribe();
@@ -123,24 +96,8 @@ export function subscribeToPresence(onPresence) {
   subscribe();
 }
 
-/* ===============================
-   ✉️ SEND CHAT MESSAGE (E2EE)
-   =============================== */
 export function sendMessage(roomId, payload) {
-  if (!isStompConnected()) {
-    console.warn("⚠️ Cannot send, STOMP not connected");
-    return;
-  }
-
-  if (
-    !payload ||
-    !payload.cipherText ||
-    !payload.iv ||
-    !payload.encryptedAesKeyForSender ||
-    !payload.encryptedAesKeyForReceiver
-  ) {
-    throw new Error("Invalid encrypted payload");
-  }
+  if (!isStompConnected()) return;
 
   client.publish({
     destination: "/app/chat.send",
@@ -154,9 +111,6 @@ export function sendMessage(roomId, payload) {
   });
 }
 
-/* =====================================================
-   📞 CALL SIGNALING
-   ===================================================== */
 export function subscribeToCallSignals(onSignal) {
   const subscribe = () => {
     callSubscription?.unsubscribe();
@@ -176,10 +130,7 @@ export function subscribeToCallSignals(onSignal) {
 }
 
 export function sendCallSignal(signal) {
-  if (!isStompConnected()) {
-    console.warn("⚠️ Cannot send call signal, STOMP not connected");
-    return;
-  }
+  if (!isStompConnected()) return;
 
   client.publish({
     destination: "/app/call.signal",
@@ -187,9 +138,6 @@ export function sendCallSignal(signal) {
   });
 }
 
-/* ===============================
-   ❌ DISCONNECT (CLEAN)
-   =============================== */
 export function disconnectWebSocket() {
   chatSubscription?.unsubscribe();
   presenceSubscription?.unsubscribe();

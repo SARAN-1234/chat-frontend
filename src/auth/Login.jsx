@@ -38,8 +38,19 @@ const Login = () => {
         profileCompleted,
       } = res.data;
 
+      /* ==================================================
+         2️⃣ SAVE JWT IMMEDIATELY (CRITICAL FIX)
+         ================================================== */
+      login({
+        token,
+        userId,
+        username: loggedInUsername,
+        profileCompleted,
+        publicKey: null, // temporary
+      });
+
       /* ===============================
-         2️⃣ LOAD PROFILE (PUBLIC KEY)
+         3️⃣ LOAD PROFILE (JWT SAFE)
          =============================== */
       const profileRes = await getProfile();
       const profile = profileRes.data;
@@ -48,7 +59,7 @@ const Login = () => {
       const storedPrivateKey = localStorage.getItem("privateKey");
 
       /* ===============================
-         3️⃣ EXISTING USER – PRIVATE KEY LOST
+         4️⃣ PRIVATE KEY LOST CASE
          =============================== */
       if (publicKey && !storedPrivateKey) {
         alert(
@@ -61,7 +72,7 @@ const Login = () => {
       }
 
       /* ===============================
-         4️⃣ FIRST LOGIN → GENERATE KEYS
+         5️⃣ FIRST LOGIN → GENERATE KEYS
          =============================== */
       if (!publicKey) {
         const { publicKey: pub, privateKey } =
@@ -77,7 +88,7 @@ const Login = () => {
       }
 
       /* ===============================
-         5️⃣ SINGLE FINAL LOGIN (ONLY ONCE)
+         6️⃣ FINAL AUTH STATE UPDATE
          =============================== */
       login({
         token,
@@ -88,11 +99,12 @@ const Login = () => {
       });
 
       /* ===============================
-         6️⃣ REDIRECT
+         7️⃣ REDIRECT
          =============================== */
       navigate(profileCompleted ? "/chat" : "/profile-setup", {
         replace: true,
       });
+
     } catch (err) {
       console.error(err);
       alert(

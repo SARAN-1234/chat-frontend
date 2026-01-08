@@ -38,16 +38,10 @@ const Login = () => {
         profileCompleted,
       } = res.data;
 
-      /* ==================================================
-         2️⃣ SAVE JWT IMMEDIATELY (CRITICAL FIX)
-         ================================================== */
-      login({
-        token,
-        userId,
-        username: loggedInUsername,
-        profileCompleted,
-        publicKey: null, // temporary
-      });
+      /* ===============================
+         2️⃣ TEMP STORE TOKEN (CRITICAL)
+         =============================== */
+      localStorage.setItem("token", token);
 
       /* ===============================
          3️⃣ LOAD PROFILE (JWT SAFE)
@@ -67,6 +61,8 @@ const Login = () => {
           "Your private key is missing.\n" +
           "Please use your original device or reset encryption."
         );
+
+        localStorage.removeItem("token");
         logout();
         return;
       }
@@ -88,7 +84,7 @@ const Login = () => {
       }
 
       /* ===============================
-         6️⃣ FINAL AUTH STATE UPDATE
+         6️⃣ FINAL AUTH STATE (ONCE)
          =============================== */
       login({
         token,
@@ -107,11 +103,14 @@ const Login = () => {
 
     } catch (err) {
       console.error(err);
-      alert(
-        err.response?.status === 401
+
+      const message =
+        err.response?.data?.message ||
+        (err.response?.status === 401
           ? "Invalid username or password"
-          : "Login failed. Please try again."
-      );
+          : "Login failed. Please try again.");
+
+      alert(message);
     } finally {
       setLoading(false);
     }

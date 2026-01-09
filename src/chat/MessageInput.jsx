@@ -27,7 +27,7 @@ const MessageInput = ({
   receiverPublicKey,
   loadingKey,
   chatType,     // "PRIVATE" | "GROUP"
-  selectedUser, // MUST contain roomId
+  selectedUser, // MUST contain chatRoomId
 }) => {
   const { auth } = useContext(AuthContext);
 
@@ -45,8 +45,9 @@ const MessageInput = ({
   const handleSend = async () => {
     if (disabled || !text.trim()) return;
 
-    if (!selectedUser?.roomId) {
-      console.error("❌ roomId missing in selectedUser", selectedUser);
+    // 🔥 HARD GUARD — PUBLIC roomId REQUIRED
+    if (!selectedUser?.chatRoomId) {
+      console.error("❌ chatRoomId missing", selectedUser);
       alert("Chat room not ready. Please reselect the chat.");
       return;
     }
@@ -76,8 +77,10 @@ const MessageInput = ({
         const encryptedAesKeyForReceiver =
           await encryptAESKey(receiverRsaKey, aesKey);
 
+        // 🔥 SEND receiverId FOR FIRST MESSAGE
         onSend({
-          chatRoomId: selectedUser.roomId, // ✅ FIX
+          chatRoomId: selectedUser.chatRoomId, // ✅ STRING
+          receiverId: selectedUser.userId,     // 🔥 REQUIRED
           type: "TEXT",
           cipherText,
           iv,
@@ -94,7 +97,7 @@ const MessageInput = ({
          =============================== */
       if (chatType === "GROUP") {
         const groupAESKey = await getGroupAESKey({
-          groupId: selectedUser.id, // group id for key lookup
+          groupId: selectedUser.chatRoomId, // ✅ STRING roomId
           encryptedGroupKeys: selectedUser.encryptedGroupKeys,
           myUserId: auth.userId,
         });
@@ -108,7 +111,7 @@ const MessageInput = ({
           await encryptGroupMessage(groupAESKey, text);
 
         onSend({
-          chatRoomId: selectedUser.roomId, // ✅ FIX
+          chatRoomId: selectedUser.chatRoomId, // ✅ STRING
           type: "TEXT",
           cipherText,
           iv,

@@ -9,7 +9,7 @@ let callSubscription = null;
 
 let onConnectedQueue = new Set();
 
-// ✅ Correct because you set server.servlet.context-path=/api
+// ✅ Correct because server.servlet.context-path=/api
 const WS_URL = "https://chat-backend-fup5.onrender.com/api/ws";
 
 /* ===============================
@@ -28,13 +28,11 @@ export function connectWebSocket(onConnected) {
   }
 
   client = new Client({
-    // 🔥 Render + SockJS compatible
     webSocketFactory: () =>
       new SockJS(WS_URL, null, {
         transports: ["websocket", "xhr-streaming", "xhr-polling"],
       }),
 
-    // ✅ JWT for CONNECT frame
     connectHeaders: {
       Authorization: `Bearer ${token}`,
     },
@@ -48,7 +46,6 @@ export function connectWebSocket(onConnected) {
     onConnect: () => {
       console.log("✅ STOMP CONNECTED");
 
-      // Flush queued subscriptions
       onConnectedQueue.forEach((cb) => cb());
       onConnectedQueue.clear();
 
@@ -99,9 +96,9 @@ export function subscribeToChat(roomId, onMessage) {
 }
 
 /* ===============================
-   SEND MESSAGE  ✅ FIXED
+   SEND MESSAGE  ✅ FINAL FIX
    =============================== */
-export function sendMessage(roomId, payload) {
+export function sendMessage(roomId, payload, receiverId = null) {
   if (!isStompConnected()) {
     console.warn("⚠️ STOMP not connected");
     return;
@@ -115,23 +112,28 @@ export function sendMessage(roomId, payload) {
 
   console.log("📤 SENDING MESSAGE", {
     roomId,
+    receiverId,
     payload,
   });
 
   client.publish({
     destination: "/app/chat.send",
 
-    // 🔥 REQUIRED: JWT on SEND frame
     headers: {
       Authorization: `Bearer ${token}`,
     },
 
     body: JSON.stringify({
       chatRoomId: roomId,
+
+      // 🔥 CRITICAL: required ONLY for first PRIVATE message
+      receiverId: receiverId ?? null,
+
       cipherText: payload.cipherText,
       iv: payload.iv,
       encryptedAesKeyForSender: payload.encryptedAesKeyForSender ?? null,
-      encryptedAesKeyForReceiver: payload.encryptedAesKeyForReceiver ?? null,
+      encryptedAesKeyForReceiver:
+        payload.encryptedAesKeyForReceiver ?? null,
       type: payload.type ?? "TEXT",
     }),
   });

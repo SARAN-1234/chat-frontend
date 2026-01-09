@@ -76,7 +76,7 @@ const ChatWindow = ({
     let cancelled = false;
     setLoadingKey(true);
 
-    // 🔥 MUST USE userId (receiver user)
+    // 🔥 MUST USE receiver userId
     getUserPublicKey(selectedUser.userId)
       .then((res) => {
         if (!cancelled) {
@@ -142,7 +142,7 @@ const ChatWindow = ({
           if (isGroup) {
             try {
               const groupAESKey = await getGroupAESKey({
-                groupId: selectedUser.roomId, // ✅ STRING roomId
+                groupId: selectedUser.chatRoomId, // ✅ FIXED
                 encryptedGroupKeys: selectedUser.encryptedGroupKeys,
                 myUserId,
               });
@@ -204,7 +204,7 @@ const ChatWindow = ({
     };
 
     prepareMessages();
-  }, [messages, selectedUser?.roomId, isGroup, myUserId]);
+  }, [messages, selectedUser?.chatRoomId, isGroup, myUserId]);
 
   /* ===============================
      AUTO SCROLL
@@ -235,7 +235,9 @@ const ChatWindow = ({
       <div className="chat-header">
         <div>
           <strong>
-            {isGroup ? selectedUser.name : selectedUser.username}
+            {isGroup
+              ? selectedUser.name
+              : selectedUser.username}
           </strong>
           <div style={{ fontSize: 12, color: "#94a3b8" }}>
             {isGroup
@@ -278,10 +280,10 @@ const ChatWindow = ({
       {/* ================= INPUT ================= */}
       <MessageInput
         chatType={selectedUser.type}
-        selectedUser={selectedUser}     // MUST contain roomId
+        selectedUser={selectedUser}     // ✅ contains chatRoomId + userId
         receiverPublicKey={receiverPublicKey}
         loadingKey={loadingKey}
-        onSend={onSend}                 // 🔥 NO re-wrapping
+        onSend={onSend}                 // 🔥 DO NOT WRAP
       />
     </div>
   );

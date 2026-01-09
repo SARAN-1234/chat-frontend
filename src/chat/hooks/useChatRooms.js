@@ -40,7 +40,6 @@ function normalizeMessage(m) {
   };
 }
 
-
 export default function useChatRooms(auth) {
   const [messages, setMessages] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
@@ -61,12 +60,10 @@ export default function useChatRooms(auth) {
         prev.forEach((m) => map.set(m.id, m));
         normalized.forEach((m) => map.set(m.id, m));
         return Array.from(map.values()).sort(
-          (a, b) =>
-            new Date(a.timestamp) - new Date(b.timestamp)
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
         );
       });
 
-      // ✅ Mark messages as read
       normalized.forEach((msg) => {
         if (Number(msg.sender.id) !== Number(auth.userId)) {
           markMessageAsRead(msg.id).catch(() => {});
@@ -78,41 +75,32 @@ export default function useChatRooms(auth) {
   };
 
   /* ===============================
-     📡 SUBSCRIBE TO ROOM (SAFE)
+     📡 SUBSCRIBE TO ROOM
      =============================== */
   const subscribeRoom = async (chatRoomId) => {
     if (!chatRoomId) return;
-
-    // 🛑 Prevent duplicate subscription
     if (subscribedRoomRef.current === chatRoomId) return;
 
-    // 🔥 Reset state on room switch
     subscribedRoomRef.current = chatRoomId;
     setActiveRoomId(chatRoomId);
     setMessages([]);
 
-    // 🔄 Load history FIRST
     await loadChatHistory(chatRoomId);
 
-    // 📡 WebSocket subscription
     subscribeToChat(chatRoomId, (msg) => {
       const normalized = normalizeMessage(msg);
 
-      // 🛑 HARD ROOM ISOLATION
       if (normalized.chatRoomId !== chatRoomId) return;
 
       setMessages((prev) => {
-        // Remove optimistic temp
         const filtered = prev.filter(
           (m) =>
             !(
               String(m.id).startsWith("temp-") &&
-              Number(m.sender.id) ===
-                Number(normalized.sender.id)
+              Number(m.sender.id) === Number(normalized.sender.id)
             )
         );
 
-        // Prevent duplicates
         if (filtered.some((m) => m.id === normalized.id)) {
           return filtered;
         }
@@ -120,18 +108,14 @@ export default function useChatRooms(auth) {
         return [...filtered, normalized];
       });
 
-      // ✅ Mark read
-      if (
-        Number(normalized.sender.id) !==
-        Number(auth.userId)
-      ) {
+      if (Number(normalized.sender.id) !== Number(auth.userId)) {
         markMessageAsRead(normalized.id).catch(() => {});
       }
     });
   };
 
   /* ===============================
-     ✉️ SEND MESSAGE (E2EE)
+     ✉️ SEND MESSAGE (🔥 FIXED)
      =============================== */
   const send = (payload) => {
     if (!activeRoomId || !payload) return;
@@ -159,11 +143,14 @@ export default function useChatRooms(auth) {
       timestamp: new Date().toISOString(),
     };
 
-    // 🔥 Optimistic UI
     setMessages((prev) => [...prev, tempMessage]);
 
-    // 🔥 Send ONLY chatRoomId
-    sendMessage(activeRoomId, payload);
+    // 🔥🔥🔥 THIS IS THE FIX 🔥🔥🔥
+    sendMessage(
+      activeRoomId,
+      payload,
+      payload.receiverId ?? null
+    );
   };
 
   return {

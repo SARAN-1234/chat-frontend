@@ -9,8 +9,12 @@ let callSubscription = null;
 
 let onConnectedQueue = new Set();
 
+// ✅ Correct because you set server.servlet.context-path=/api
 const WS_URL = "https://chat-backend-fup5.onrender.com/api/ws";
 
+/* ===============================
+   CONNECT WEBSOCKET
+   =============================== */
 export function connectWebSocket(onConnected) {
   if (client?.active || client?.connected) {
     console.warn("⚠️ STOMP already active");
@@ -24,12 +28,13 @@ export function connectWebSocket(onConnected) {
   }
 
   client = new Client({
-    // 🔥 RENDER FIX: SockJS REQUIRED
+    // 🔥 Render + SockJS compatible
     webSocketFactory: () =>
       new SockJS(WS_URL, null, {
         transports: ["websocket", "xhr-streaming", "xhr-polling"],
       }),
 
+    // ✅ JWT for CONNECT frame
     connectHeaders: {
       Authorization: `Bearer ${token}`,
     },
@@ -43,6 +48,7 @@ export function connectWebSocket(onConnected) {
     onConnect: () => {
       console.log("✅ STOMP CONNECTED");
 
+      // Flush queued subscriptions
       onConnectedQueue.forEach((cb) => cb());
       onConnectedQueue.clear();
 
@@ -93,7 +99,7 @@ export function subscribeToChat(roomId, onMessage) {
 }
 
 /* ===============================
-   SEND MESSAGE
+   SEND MESSAGE  ✅ FIXED
    =============================== */
 export function sendMessage(roomId, payload) {
   if (!isStompConnected()) {
@@ -101,16 +107,32 @@ export function sendMessage(roomId, payload) {
     return;
   }
 
-  console.log("📤 SENDING MESSAGE", payload);
+  const token = localStorage.getItem("token");
+  if (!token) {
+    console.error("❌ JWT missing for SEND");
+    return;
+  }
+
+  console.log("📤 SENDING MESSAGE", {
+    roomId,
+    payload,
+  });
 
   client.publish({
     destination: "/app/chat.send",
+
+    // 🔥 REQUIRED: JWT on SEND frame
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+
     body: JSON.stringify({
       chatRoomId: roomId,
       cipherText: payload.cipherText,
       iv: payload.iv,
-      encryptedAesKeyForSender: payload.encryptedAesKeyForSender,
-      encryptedAesKeyForReceiver: payload.encryptedAesKeyForReceiver,
+      encryptedAesKeyForSender: payload.encryptedAesKeyForSender ?? null,
+      encryptedAesKeyForReceiver: payload.encryptedAesKeyForReceiver ?? null,
+      type: payload.type ?? "TEXT",
     }),
   });
 }
@@ -139,8 +161,14 @@ export function subscribeToCallSignals(onSignal) {
 export function sendCallSignal(signal) {
   if (!isStompConnected()) return;
 
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
   client.publish({
     destination: "/app/call.signal",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(signal),
   });
 }

@@ -1,4 +1,5 @@
 import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 let client = null;
 
@@ -7,6 +8,8 @@ let presenceSubscription = null;
 let callSubscription = null;
 
 let onConnectedQueue = new Set();
+
+const WS_URL = "https://chat-backend-fup5.onrender.com/api/ws";
 
 export function connectWebSocket(onConnected) {
   if (client?.active || client?.connected) {
@@ -21,7 +24,11 @@ export function connectWebSocket(onConnected) {
   }
 
   client = new Client({
-    brokerURL: "wss://chat-backend-fup5.onrender.com/api/ws",
+    // 🔥 RENDER FIX: SockJS REQUIRED
+    webSocketFactory: () =>
+      new SockJS(WS_URL, null, {
+        transports: ["websocket", "xhr-streaming", "xhr-polling"],
+      }),
 
     connectHeaders: {
       Authorization: `Bearer ${token}`,
@@ -58,6 +65,9 @@ export function isStompConnected() {
   return client?.connected === true;
 }
 
+/* ===============================
+   CHAT SUBSCRIBE
+   =============================== */
 export function subscribeToChat(roomId, onMessage) {
   if (!roomId) return;
 
@@ -66,7 +76,11 @@ export function subscribeToChat(roomId, onMessage) {
 
     chatSubscription = client.subscribe(
       `/topic/chat/${roomId}`,
-      (msg) => onMessage(JSON.parse(msg.body))
+      (msg) => {
+        const parsed = JSON.parse(msg.body);
+        console.log("📨 CHAT:", parsed);
+        onMessage(parsed);
+      }
     );
   };
 
@@ -78,26 +92,16 @@ export function subscribeToChat(roomId, onMessage) {
   subscribe();
 }
 
-export function subscribeToPresence(onPresence) {
-  const subscribe = () => {
-    presenceSubscription?.unsubscribe();
-
-    presenceSubscription = client.subscribe(
-      "/topic/presence",
-      (msg) => onPresence(JSON.parse(msg.body))
-    );
-  };
-
-  if (!isStompConnected()) {
-    onConnectedQueue.add(subscribe);
-    return;
-  }
-
-  subscribe();
-}
-
+/* ===============================
+   SEND MESSAGE
+   =============================== */
 export function sendMessage(roomId, payload) {
-  if (!isStompConnected()) return;
+  if (!isStompConnected()) {
+    console.warn("⚠️ STOMP not connected");
+    return;
+  }
+
+  console.log("📤 SENDING MESSAGE", payload);
 
   client.publish({
     destination: "/app/chat.send",
@@ -111,6 +115,9 @@ export function sendMessage(roomId, payload) {
   });
 }
 
+/* ===============================
+   CALL SIGNALING
+   =============================== */
 export function subscribeToCallSignals(onSignal) {
   const subscribe = () => {
     callSubscription?.unsubscribe();
@@ -138,6 +145,9 @@ export function sendCallSignal(signal) {
   });
 }
 
+/* ===============================
+   DISCONNECT
+   =============================== */
 export function disconnectWebSocket() {
   chatSubscription?.unsubscribe();
   presenceSubscription?.unsubscribe();

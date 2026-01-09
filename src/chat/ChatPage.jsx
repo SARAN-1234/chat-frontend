@@ -65,43 +65,72 @@ const ChatPage = () => {
   } = useChatRooms(auth);
 
   /* ===============================
-     👤 USER / GROUP SELECTION
+     👤 USER / GROUP SELECTION (FIXED)
      =============================== */
-  const handleSelectUser = useCallback((user) => {
-    /**
-     * 🔥 CRITICAL RULE
-     * NEVER modify or reshape `user`
-     * It already contains crypto fields
-     */
-    setSelectedUser(user);
+  const handleSelectUser = useCallback((payload) => {
+    let normalized;
 
-    const roomId = user.roomId ?? user.id;
-    setActiveRoomId(roomId);
+    if (payload.type === "PRIVATE") {
+      normalized = {
+        type: "PRIVATE",
+
+        // ✅ ONLY ID used for messaging
+        chatRoomId: payload.chatRoomId,
+
+        // 👤 user identity (presence, calls, UI)
+        userId: payload.id,
+        username: payload.username,
+        email: payload.email,
+        publicKey: payload.publicKey,
+      };
+    }
+
+    if (payload.type === "GROUP") {
+      normalized = {
+        type: "GROUP",
+
+        // ✅ group.id IS chatRoomId
+        chatRoomId: payload.id,
+        name: payload.name,
+
+        // 🔐 group encryption keys
+        encryptedGroupKeys: payload.encryptedGroupKeys ?? {},
+      };
+    }
+
+    if (!normalized?.chatRoomId) {
+      console.error("❌ Invalid chat selection payload:", payload);
+      return;
+    }
+
+    setSelectedUser(normalized);
+    setActiveRoomId(normalized.chatRoomId);
 
     // UI cleanup
     setShowAiEmail(false);
     setShowGroupInfo(false);
 
-    // Persist only identifiers
+    // Persist ONLY chatRoomId
     localStorage.setItem(
       "lastChat",
       JSON.stringify({
-        roomId,
+        chatRoomId: normalized.chatRoomId,
       })
     );
   }, []);
 
   /* ===============================
-     🔄 RESTORE LAST ROOM (SAFE)
+     🔄 RESTORE LAST ROOM
      =============================== */
   useEffect(() => {
     const saved = localStorage.getItem("lastChat");
     if (!saved) return;
 
     try {
-      const { roomId } = JSON.parse(saved);
-      setActiveRoomId(roomId);
-      // ❗ selectedUser must be chosen again via Sidebar
+      const { chatRoomId } = JSON.parse(saved);
+      if (chatRoomId) {
+        setActiveRoomId(chatRoomId);
+      }
     } catch {
       localStorage.removeItem("lastChat");
     }
@@ -125,11 +154,14 @@ const ChatPage = () => {
         <ChatWindow
           messages={messages}
           selectedUser={selectedUser}
+
+          /* ✅ Presence only for PRIVATE users */
           presence={
-            selectedUser
-              ? presenceMap?.[Number(selectedUser.id)]
+            selectedUser?.type === "PRIVATE"
+              ? presenceMap?.[Number(selectedUser.userId)]
               : null
           }
+
           onSend={send}
           onToggleAi={() => setShowAiEmail((p) => !p)}
           onToggleGroupInfo={() =>
@@ -137,7 +169,7 @@ const ChatPage = () => {
           }
         />
 
-        {showAiEmail && selectedUser && (
+        {showAiEmail && selectedUser?.type === "PRIVATE" && (
           <AiEmailPanel
             recipient={selectedUser.email}
             senderName={auth.username}

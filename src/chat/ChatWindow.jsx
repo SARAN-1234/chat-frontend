@@ -1,5 +1,5 @@
 /* =====================================================
-   CHAT WINDOW – E2EE SAFE (FINAL)
+   CHAT WINDOW – E2EE SAFE (FINAL – FIXED)
    ===================================================== */
 
 import { useEffect, useRef, useContext, useState } from "react";
@@ -20,9 +20,9 @@ import {
 
 import { getUserPublicKey } from "../api/userApi";
 
-/* =====================================================
+/* ===============================
    MESSAGE NORMALIZER
-   ===================================================== */
+   =============================== */
 function normalizeMessage(m) {
   return {
     ...m,
@@ -70,7 +70,8 @@ const ChatWindow = ({
     let cancelled = false;
     setLoadingKey(true);
 
-    getUserPublicKey(selectedUser.id)
+    // 🔥 IMPORTANT: use userId, NOT id
+    getUserPublicKey(selectedUser.userId)
       .then((res) => {
         if (!cancelled) {
           setReceiverPublicKey(res.data?.publicKey || null);
@@ -86,10 +87,10 @@ const ChatWindow = ({
     return () => {
       cancelled = true;
     };
-  }, [selectedUser?.id]);
+  }, [selectedUser?.userId]);
 
   /* ===============================
-     🔓 DECRYPT MESSAGES (PRIVATE + GROUP)
+     🔓 DECRYPT MESSAGES
      =============================== */
   useEffect(() => {
     const prepareMessages = async () => {
@@ -136,7 +137,7 @@ const ChatWindow = ({
           if (isGroup) {
             try {
               const groupAESKey = await getGroupAESKey({
-                groupId: selectedUser.id,
+                groupId: selectedUser.chatRoomId, // ✅ FIXED
                 encryptedGroupKeys:
                   selectedUser.encryptedGroupKeys,
                 myUserId,
@@ -161,7 +162,6 @@ const ChatWindow = ({
              =============================== */
           let aesKey = null;
 
-          // 🔑 Try sender-encrypted AES key
           if (m.encryptedAesKeyForSender) {
             try {
               aesKey = await decryptAESKey(
@@ -171,7 +171,6 @@ const ChatWindow = ({
             } catch {}
           }
 
-          // 🔑 Try receiver-encrypted AES key
           if (!aesKey && m.encryptedAesKeyForReceiver) {
             try {
               aesKey = await decryptAESKey(
@@ -191,7 +190,6 @@ const ChatWindow = ({
               m.cipherText,
               m.iv
             );
-
             return { ...m, content: plainText };
           } catch {
             return { ...m, content: "🔒 Unable to decrypt" };
@@ -203,7 +201,7 @@ const ChatWindow = ({
     };
 
     prepareMessages();
-  }, [messages, myUserId, selectedUser?.id]);
+  }, [messages, myUserId, selectedUser?.chatRoomId, isGroup]);
 
   /* ===============================
      AUTO SCROLL
@@ -297,8 +295,7 @@ const ChatWindow = ({
         loadingKey={loadingKey}
         onSend={(payload) =>
           onSend({
-            chatRoomId:
-              selectedUser.roomId ?? selectedUser.id,
+            chatRoomId: selectedUser.chatRoomId, // ✅ ONLY SOURCE OF TRUTH
             ...payload,
           })
         }

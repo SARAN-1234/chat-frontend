@@ -54,40 +54,64 @@ const Sidebar = ({ onSelectUser }) => {
       {/* LIST */}
       <div className="sidebar-scroll">
         {search.trim() ? (
+          /* ===============================
+             🔍 USER SEARCH (NEW PRIVATE CHAT)
+             =============================== */
           <UserSearchResults
             users={users}
             loading={loading}
             onSelect={(user) => {
               setSearch("");
+
               onSelectUser({
-                ...user,
                 type: "PRIVATE",
+
+                // 🔥 NO roomId YET → backend must create
+                roomId: null,
+
+                userId: user.id,
+                username: user.username,
+                email: user.email,
+                publicKey: user.publicKey,
               });
             }}
           />
         ) : (
           <>
-            {/* PRIVATE CHATS */}
+            {/* ===============================
+               💬 PRIVATE CHATS (EXISTING)
+               =============================== */}
             <ChatList
               chats={chats}
               authUserId={auth?.userId}
-              onSelect={(user) =>
+              onSelect={(chat) =>
                 onSelectUser({
-                  ...user,
                   type: "PRIVATE",
+
+                  // 🔥 CRITICAL FIX
+                  roomId: chat.roomId, // STRING
+
+                  userId: chat.otherUserId,
+                  username: chat.otherUsername,
+                  email: chat.otherUserEmail,
+                  publicKey: chat.otherUserPublicKey,
                 })
               }
             />
 
-            {/* GROUP CHATS ✅ */}
+            {/* ===============================
+               👥 GROUP CHATS
+               =============================== */}
             <GroupList
               groups={groups}
               onSelect={(group) =>
                 onSelectUser({
-                  ...group,
                   type: "GROUP",
 
-                  // 🔐 🔥 CRITICAL — DO NOT DROP THIS
+                  // 🔥 CRITICAL FIX
+                  roomId: group.roomId, // STRING
+
+                  name: group.name,
                   encryptedGroupKeys:
                     group.encryptedGroupKeys ?? {},
                 })
@@ -104,10 +128,10 @@ const Sidebar = ({ onSelectUser }) => {
           onCreated={(group) => {
             setShowCreateGroup(false);
 
-            // 🔐 Ensure keys exist even for newly created group
             onSelectUser({
-              ...group,
               type: "GROUP",
+              roomId: group.roomId, // STRING
+              name: group.name,
               encryptedGroupKeys:
                 group.encryptedGroupKeys ?? {},
             });

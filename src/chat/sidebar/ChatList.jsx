@@ -11,24 +11,27 @@ const ChatList = ({ chats, authUserId, onSelect }) => {
 
       {chats.map((chat) => (
         <div
-          key={chat.chatRoomId}
+          key={chat.roomId} // ✅ STRING roomId
           className="user"
           onClick={() =>
             onSelect({
               type: "PRIVATE",
 
-              // ✅ THE MOST IMPORTANT FIX
-              chatRoomId: chat.chatRoomId,
+              // 🔥 ONLY VALUE USED FOR MESSAGING
+              chatRoomId: chat.roomId, // ✅ STRING
 
-              // 👤 user identity (NOT used for messaging)
+              // 👤 User identity (UI / presence only)
               userId: chat.otherUserId,
               username: chat.otherUsername,
               email: chat.otherUserEmail,
+              publicKey: chat.otherUserPublicKey,
             })
           }
         >
           <div className="user-info">
-            <span className="username">{chat.otherUsername}</span>
+            <span className="username">
+              {chat.otherUsername}
+            </span>
 
             <span className="email">
               {chat.lastMessageSenderId === authUserId
@@ -49,5 +52,4 @@ const ChatList = ({ chats, authUserId, onSelect }) => {
   );
 };
 
-/* 🔥 PREVENT UNNECESSARY RERENDERS */
 export default React.memo(ChatList);

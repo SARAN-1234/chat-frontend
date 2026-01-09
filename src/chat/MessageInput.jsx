@@ -27,7 +27,7 @@ const MessageInput = ({
   receiverPublicKey,
   loadingKey,
   chatType,     // "PRIVATE" | "GROUP"
-  selectedUser, // required for GROUP
+  selectedUser, // MUST contain roomId
 }) => {
   const { auth } = useContext(AuthContext);
 
@@ -44,6 +44,12 @@ const MessageInput = ({
      ===================================================== */
   const handleSend = async () => {
     if (disabled || !text.trim()) return;
+
+    if (!selectedUser?.roomId) {
+      console.error("❌ roomId missing in selectedUser", selectedUser);
+      alert("Chat room not ready. Please reselect the chat.");
+      return;
+    }
 
     try {
       setSending(true);
@@ -62,7 +68,6 @@ const MessageInput = ({
         const senderRsaKey = await importPublicKey(senderPublicKeyBase64);
 
         const aesKey = await generateAESKey();
-
         const { cipherText, iv } = await encryptWithAES(aesKey, text);
 
         const encryptedAesKeyForSender =
@@ -72,6 +77,7 @@ const MessageInput = ({
           await encryptAESKey(receiverRsaKey, aesKey);
 
         onSend({
+          chatRoomId: selectedUser.roomId, // ✅ FIX
           type: "TEXT",
           cipherText,
           iv,
@@ -88,7 +94,7 @@ const MessageInput = ({
          =============================== */
       if (chatType === "GROUP") {
         const groupAESKey = await getGroupAESKey({
-          groupId: selectedUser.id,
+          groupId: selectedUser.id, // group id for key lookup
           encryptedGroupKeys: selectedUser.encryptedGroupKeys,
           myUserId: auth.userId,
         });
@@ -98,11 +104,11 @@ const MessageInput = ({
           return;
         }
 
-        // ✅ FIXED FUNCTION CALL
         const { cipherText, iv } =
           await encryptGroupMessage(groupAESKey, text);
 
         onSend({
+          chatRoomId: selectedUser.roomId, // ✅ FIX
           type: "TEXT",
           cipherText,
           iv,
@@ -113,7 +119,7 @@ const MessageInput = ({
     } catch (err) {
       console.error("❌ Encryption / send failed", err);
 
-      if (err.name === "OperationError") {
+      if (err?.name === "OperationError") {
         alert(
           "Your encryption keys have changed. Please leave and rejoin the group."
         );

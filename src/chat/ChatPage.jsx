@@ -54,7 +54,7 @@ const ChatPage = () => {
     useChatSocket(auth);
 
   /* ===============================
-     💬 CHAT ROOMS
+     💬 CHAT ROOMS + WS
      =============================== */
   const {
     messages,
@@ -65,19 +65,20 @@ const ChatPage = () => {
   } = useChatRooms(auth);
 
   /* ===============================
-     👤 USER / GROUP SELECTION (FIXED)
+     👤 USER / GROUP SELECTION (FINAL)
      =============================== */
   const handleSelectUser = useCallback((payload) => {
-    let normalized;
+    let normalized = null;
 
+    /* ---------- PRIVATE CHAT ---------- */
     if (payload.type === "PRIVATE") {
       normalized = {
         type: "PRIVATE",
 
-        // ✅ ONLY ID used for messaging
-        chatRoomId: payload.chatRoomId,
+        // 🔥 SINGLE SOURCE OF TRUTH (STRING roomId)
+        roomId: payload.roomId,
 
-        // 👤 user identity (presence, calls, UI)
+        // 👤 user identity
         userId: payload.id,
         username: payload.username,
         email: payload.email,
@@ -85,39 +86,37 @@ const ChatPage = () => {
       };
     }
 
+    /* ---------- GROUP CHAT ---------- */
     if (payload.type === "GROUP") {
       normalized = {
         type: "GROUP",
 
-        // ✅ group.id IS chatRoomId
-        chatRoomId: payload.id,
-        name: payload.name,
+        // 🔥 group.roomId (STRING)
+        roomId: payload.roomId,
 
-        // 🔐 group encryption keys
+        name: payload.name,
         encryptedGroupKeys: payload.encryptedGroupKeys ?? {},
       };
     }
 
-    if (!normalized?.chatRoomId) {
+    if (!normalized?.roomId) {
       console.error("❌ Invalid chat selection payload:", payload);
       return;
     }
 
     setSelectedUser(normalized);
-    setActiveRoomId(normalized.chatRoomId);
+    setActiveRoomId(normalized.roomId);
 
     // UI cleanup
     setShowAiEmail(false);
     setShowGroupInfo(false);
 
-    // Persist ONLY chatRoomId
+    // Persist ONLY roomId
     localStorage.setItem(
       "lastChat",
-      JSON.stringify({
-        chatRoomId: normalized.chatRoomId,
-      })
+      JSON.stringify({ roomId: normalized.roomId })
     );
-  }, []);
+  }, [setActiveRoomId]);
 
   /* ===============================
      🔄 RESTORE LAST ROOM
@@ -127,9 +126,9 @@ const ChatPage = () => {
     if (!saved) return;
 
     try {
-      const { chatRoomId } = JSON.parse(saved);
-      if (chatRoomId) {
-        setActiveRoomId(chatRoomId);
+      const { roomId } = JSON.parse(saved);
+      if (roomId) {
+        setActiveRoomId(roomId);
       }
     } catch {
       localStorage.removeItem("lastChat");
@@ -137,7 +136,7 @@ const ChatPage = () => {
   }, [setActiveRoomId]);
 
   /* ===============================
-     🔥 SINGLE WS SUBSCRIPTION SOURCE
+     🔥 SINGLE WS SUBSCRIPTION
      =============================== */
   useEffect(() => {
     if (!activeRoomId) return;
@@ -155,7 +154,7 @@ const ChatPage = () => {
           messages={messages}
           selectedUser={selectedUser}
 
-          /* ✅ Presence only for PRIVATE users */
+          /* ✅ Presence ONLY for private chats */
           presence={
             selectedUser?.type === "PRIVATE"
               ? presenceMap?.[Number(selectedUser.userId)]

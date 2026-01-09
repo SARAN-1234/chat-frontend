@@ -1,5 +1,5 @@
 /* =====================================================
-   CHAT WINDOW – E2EE SAFE (FINAL – FIXED)
+   CHAT WINDOW – E2EE SAFE (FINAL – CORRECT)
    ===================================================== */
 
 import { useEffect, useRef, useContext, useState } from "react";
@@ -7,12 +7,18 @@ import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
 import AuthContext from "../context/AuthContext";
 
+/* ===============================
+   PRIVATE CHAT CRYPTO
+   =============================== */
 import {
   importPrivateKey,
   decryptAESKey,
   decryptWithAES,
 } from "./group/utils/crypto";
 
+/* ===============================
+   GROUP CHAT CRYPTO
+   =============================== */
 import {
   getGroupAESKey,
   decryptGroupMessage,
@@ -31,9 +37,9 @@ function normalizeMessage(m) {
       username: m.senderUsername,
     },
     encryptedAesKeyForSender:
-      m.encryptedAesKeyForSender ?? m.encryptedAesKey,
+      m.encryptedAesKeyForSender ?? null,
     encryptedAesKeyForReceiver:
-      m.encryptedAesKeyForReceiver ?? m.encryptedAesKey,
+      m.encryptedAesKeyForReceiver ?? null,
   };
 }
 
@@ -70,7 +76,7 @@ const ChatWindow = ({
     let cancelled = false;
     setLoadingKey(true);
 
-    // 🔥 IMPORTANT: use userId, NOT id
+    // 🔥 MUST USE userId (receiver user)
     getUserPublicKey(selectedUser.userId)
       .then((res) => {
         if (!cancelled) {
@@ -87,7 +93,7 @@ const ChatWindow = ({
     return () => {
       cancelled = true;
     };
-  }, [selectedUser?.userId]);
+  }, [selectedUser?.userId, selectedUser?.type]);
 
   /* ===============================
      🔓 DECRYPT MESSAGES
@@ -100,7 +106,6 @@ const ChatWindow = ({
         return;
       }
 
-      // Prevent re-decrypting same messages
       const signature = messages
         .filter((m) => !String(m.id).startsWith("temp-"))
         .map((m) => `${m.id}:${m.timestamp}`)
@@ -137,18 +142,16 @@ const ChatWindow = ({
           if (isGroup) {
             try {
               const groupAESKey = await getGroupAESKey({
-                groupId: selectedUser.chatRoomId, // ✅ FIXED
-                encryptedGroupKeys:
-                  selectedUser.encryptedGroupKeys,
+                groupId: selectedUser.roomId, // ✅ STRING roomId
+                encryptedGroupKeys: selectedUser.encryptedGroupKeys,
                 myUserId,
               });
 
-              const plainText =
-                await decryptGroupMessage({
-                  groupAESKey,
-                  cipherText: m.cipherText,
-                  iv: m.iv,
-                });
+              const plainText = await decryptGroupMessage({
+                groupAESKey,
+                cipherText: m.cipherText,
+                iv: m.iv,
+              });
 
               return { ...m, content: plainText };
             } catch (e) {
@@ -201,7 +204,7 @@ const ChatWindow = ({
     };
 
     prepareMessages();
-  }, [messages, myUserId, selectedUser?.chatRoomId, isGroup]);
+  }, [messages, selectedUser?.roomId, isGroup, myUserId]);
 
   /* ===============================
      AUTO SCROLL
@@ -232,9 +235,7 @@ const ChatWindow = ({
       <div className="chat-header">
         <div>
           <strong>
-            {isGroup
-              ? selectedUser.name
-              : selectedUser.username}
+            {isGroup ? selectedUser.name : selectedUser.username}
           </strong>
           <div style={{ fontSize: 12, color: "#94a3b8" }}>
             {isGroup
@@ -243,29 +244,19 @@ const ChatWindow = ({
               ? "🟢 Online"
               : presence?.lastSeen
               ? "Last seen " +
-                new Date(
-                  presence.lastSeen
-                ).toLocaleString("en-IN")
+                new Date(presence.lastSeen).toLocaleString("en-IN")
               : "Offline"}
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
           {isGroup && (
-            <button onClick={onToggleGroupInfo}>
-              ℹ️
-            </button>
+            <button onClick={onToggleGroupInfo}>ℹ️</button>
           )}
           {!isGroup && (
             <>
               <button onClick={onToggleAi}>🤖</button>
-              <button
-                onClick={() =>
-                  onStartCall(selectedUser)
-                }
-              >
-                📞
-              </button>
+              <button onClick={() => onStartCall(selectedUser)}>📞</button>
             </>
           )}
         </div>
@@ -277,10 +268,7 @@ const ChatWindow = ({
           <MessageBubble
             key={m.id}
             message={m}
-            isMe={
-              Number(m.sender.id) ===
-              Number(myUserId)
-            }
+            isMe={Number(m.sender.id) === Number(myUserId)}
             chatType={selectedUser.type}
           />
         ))}
@@ -290,15 +278,10 @@ const ChatWindow = ({
       {/* ================= INPUT ================= */}
       <MessageInput
         chatType={selectedUser.type}
-        selectedUser={selectedUser}
+        selectedUser={selectedUser}     // MUST contain roomId
         receiverPublicKey={receiverPublicKey}
         loadingKey={loadingKey}
-        onSend={(payload) =>
-          onSend({
-            chatRoomId: selectedUser.chatRoomId, // ✅ ONLY SOURCE OF TRUTH
-            ...payload,
-          })
-        }
+        onSend={onSend}                 // 🔥 NO re-wrapping
       />
     </div>
   );

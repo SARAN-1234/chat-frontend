@@ -27,7 +27,7 @@ const MessageInput = ({
   receiverPublicKey,
   loadingKey,
   chatType,     // "PRIVATE" | "GROUP"
-  selectedUser, // MUST contain chatRoomId
+  selectedUser, // MUST contain chatRoomId (string | null)
 }) => {
   const { auth } = useContext(AuthContext);
 
@@ -36,21 +36,13 @@ const MessageInput = ({
 
   const disabled =
     sending ||
-    (chatType === "PRIVATE" &&
-      (loadingKey || !receiverPublicKey));
+    (chatType === "PRIVATE" && (loadingKey || !receiverPublicKey));
 
   /* =====================================================
      🔐 ENCRYPT + SEND MESSAGE
      ===================================================== */
   const handleSend = async () => {
     if (disabled || !text.trim()) return;
-
-    // 🔥 HARD GUARD — PUBLIC roomId REQUIRED
-    if (!selectedUser?.chatRoomId) {
-      console.error("❌ chatRoomId missing", selectedUser);
-      alert("Chat room not ready. Please reselect the chat.");
-      return;
-    }
 
     try {
       setSending(true);
@@ -59,6 +51,11 @@ const MessageInput = ({
          🔒 PRIVATE CHAT
          =============================== */
       if (chatType === "PRIVATE") {
+        if (!selectedUser?.userId) {
+          alert("Receiver missing. Reselect the user.");
+          return;
+        }
+
         const senderPublicKeyBase64 = auth?.publicKey;
         if (!senderPublicKeyBase64) {
           alert("Sender public key missing");
@@ -77,10 +74,10 @@ const MessageInput = ({
         const encryptedAesKeyForReceiver =
           await encryptAESKey(receiverRsaKey, aesKey);
 
-        // 🔥 receiverId REQUIRED for first PRIVATE message
+        // ✅ ALLOW chatRoomId to be NULL (FIRST MESSAGE)
         onSend({
-          chatRoomId: selectedUser.chatRoomId, // ✅ STRING
-          receiverId: selectedUser.userId,     // 🔥 REQUIRED
+          chatRoomId: selectedUser.chatRoomId ?? null,
+          receiverId: selectedUser.userId,   // 🔥 THIS CREATES ROOM
           type: "TEXT",
           cipherText,
           iv,
@@ -96,22 +93,22 @@ const MessageInput = ({
          👥 GROUP CHAT
          =============================== */
       if (chatType === "GROUP") {
+        if (!selectedUser?.chatRoomId) {
+          alert("Group room not ready");
+          return;
+        }
+
         const groupAESKey = await getGroupAESKey({
-          groupId: selectedUser.chatRoomId, // ✅ STRING roomId
+          groupId: selectedUser.chatRoomId,
           encryptedGroupKeys: selectedUser.encryptedGroupKeys,
           myUserId: auth.userId,
         });
-
-        if (!groupAESKey) {
-          alert("Group encryption keys are invalid. Rejoin the group.");
-          return;
-        }
 
         const { cipherText, iv } =
           await encryptGroupMessage(groupAESKey, text);
 
         onSend({
-          chatRoomId: selectedUser.chatRoomId, // ✅ STRING
+          chatRoomId: selectedUser.chatRoomId,
           type: "TEXT",
           cipherText,
           iv,
@@ -121,14 +118,7 @@ const MessageInput = ({
       }
     } catch (err) {
       console.error("❌ Encryption / send failed", err);
-
-      if (err?.name === "OperationError") {
-        alert(
-          "Your encryption keys have changed. Please leave and rejoin the group."
-        );
-      } else {
-        alert("Failed to send message");
-      }
+      alert("Failed to send message");
     } finally {
       setSending(false);
     }

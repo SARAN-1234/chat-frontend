@@ -1,6 +1,15 @@
 import React from "react";
 
 const ChatList = ({ chats, authUserId, onSelect }) => {
+  if (!Array.isArray(chats)) {
+    return (
+      <div className="sidebar-section">
+        <p className="sidebar-title">CHATS</p>
+        <p className="no-users">No conversations yet</p>
+      </div>
+    );
+  }
+
   return (
     <div className="sidebar-section">
       <p className="sidebar-title">CHATS</p>
@@ -9,45 +18,50 @@ const ChatList = ({ chats, authUserId, onSelect }) => {
         <p className="no-users">No conversations yet</p>
       )}
 
-      {chats.map((chat) => (
-        <div
-          key={chat.roomId} // ✅ STRING roomId
-          className="user"
-          onClick={() =>
-            onSelect({
-              type: "PRIVATE",
+      {chats.map((chat) => {
+        if (!chat?.roomId) return null; // 🔒 hard guard
 
-              // 🔥 ONLY VALUE USED FOR MESSAGING
-              chatRoomId: chat.roomId, // ✅ STRING
+        return (
+          <div
+            key={chat.roomId} // ✅ PUBLIC STRING roomId
+            className="user"
+            onClick={() =>
+              onSelect({
+                type: "PRIVATE",
 
-              // 👤 User identity (UI / presence only)
-              userId: chat.otherUserId,
-              username: chat.otherUsername,
-              email: chat.otherUserEmail,
-              publicKey: chat.otherUserPublicKey,
-            })
-          }
-        >
-          <div className="user-info">
-            <span className="username">
-              {chat.otherUsername}
-            </span>
+                // 🔥 ONLY VALUE USED FOR MESSAGING
+                chatRoomId: chat.roomId, // ✅ STRING
 
-            <span className="email">
-              {chat.lastMessageSenderId === authUserId
-                ? `You: ${chat.lastMessage}`
-                : chat.lastMessage}
-            </span>
+                // 👤 User identity (UI / presence only)
+                userId: chat.otherUserId,
+                username: chat.otherUsername,
+                email: chat.otherUserEmail,
+                publicKey: chat.otherUserPublicKey,
+              })
+            }
+          >
+            <div className="user-info">
+              <span className="username">
+                {chat.otherUsername}
+              </span>
+
+              <span className="email">
+                {chat.lastMessageSenderId === authUserId
+                  ? `You: ${chat.lastMessage}`
+                  : chat.lastMessage}
+              </span>
+            </div>
+
+            <div className="chat-time">
+              {chat.lastMessageTime &&
+                new Date(chat.lastMessageTime).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+            </div>
           </div>
-
-          <div className="chat-time">
-            {new Date(chat.lastMessageTime).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

@@ -35,10 +35,10 @@ const Sidebar = ({ onSelectUser }) => {
 
   return (
     <div className="sidebar">
-      {/* PROFILE */}
+      {/* ================= PROFILE ================= */}
       <SidebarProfile />
 
-      {/* CREATE GROUP */}
+      {/* ================= CREATE GROUP ================= */}
       <button
         className="new-group-btn"
         onClick={() => setShowCreateGroup(true)}
@@ -48,10 +48,10 @@ const Sidebar = ({ onSelectUser }) => {
 
       <div className="sidebar-header">💬 Chats</div>
 
-      {/* SEARCH */}
+      {/* ================= SEARCH ================= */}
       <SidebarSearch value={search} onChange={setSearch} />
 
-      {/* LIST */}
+      {/* ================= LIST ================= */}
       <div className="sidebar-scroll">
         {search.trim() ? (
           /* ===============================
@@ -66,9 +66,10 @@ const Sidebar = ({ onSelectUser }) => {
               onSelectUser({
                 type: "PRIVATE",
 
-                // 🔥 NO roomId YET → backend must create
-                roomId: null,
+                // 🔥 MUST BE chatRoomId (null = first message)
+                chatRoomId: null,
 
+                // 👤 Receiver identity
                 userId: user.id,
                 username: user.username,
                 email: user.email,
@@ -88,8 +89,8 @@ const Sidebar = ({ onSelectUser }) => {
                 onSelectUser({
                   type: "PRIVATE",
 
-                  // 🔥 CRITICAL FIX
-                  roomId: chat.roomId, // STRING
+                  // ✅ FIX: PUBLIC STRING roomId
+                  chatRoomId: chat.roomId,
 
                   userId: chat.otherUserId,
                   username: chat.otherUsername,
@@ -108,8 +109,8 @@ const Sidebar = ({ onSelectUser }) => {
                 onSelectUser({
                   type: "GROUP",
 
-                  // 🔥 CRITICAL FIX
-                  roomId: group.roomId, // STRING
+                  // ✅ FIX: PUBLIC STRING roomId
+                  chatRoomId: group.roomId,
 
                   name: group.name,
                   encryptedGroupKeys:
@@ -121,7 +122,7 @@ const Sidebar = ({ onSelectUser }) => {
         )}
       </div>
 
-      {/* CREATE GROUP MODAL */}
+      {/* ================= CREATE GROUP MODAL ================= */}
       {showCreateGroup && (
         <CreateGroupModal
           onClose={() => setShowCreateGroup(false)}
@@ -130,7 +131,10 @@ const Sidebar = ({ onSelectUser }) => {
 
             onSelectUser({
               type: "GROUP",
-              roomId: group.roomId, // STRING
+
+              // ✅ FIX
+              chatRoomId: group.roomId,
+
               name: group.name,
               encryptedGroupKeys:
                 group.encryptedGroupKeys ?? {},

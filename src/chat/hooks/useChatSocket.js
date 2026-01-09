@@ -15,7 +15,6 @@ export default function useChatSocket(auth) {
   useEffect(() => {
     if (!auth?.userId || connectedRef.current) return;
 
-    /* 🔹 1️⃣ LOAD INITIAL PRESENCE FROM BACKEND (DB) */
     api.get("/users/presence").then((res) => {
       const initial = {};
       res.data.forEach((p) => {
@@ -24,11 +23,9 @@ export default function useChatSocket(auth) {
       setPresenceMap(initial);
     });
 
-    /* 🔹 2️⃣ CONNECT WEBSOCKET */
     connectWebSocket(() => {
       connectedRef.current = true;
 
-      /* 🔹 REAL-TIME PRESENCE */
       subscribeToPresence((data) => {
         setPresenceMap((prev) => ({
           ...prev,
@@ -36,7 +33,6 @@ export default function useChatSocket(auth) {
         }));
       });
 
-      /* 🔹 CALL SIGNALS */
       subscribeToCallSignals((signal) => {
         if (signal.type === "CALL_REQUEST") {
           setIncomingCall({
@@ -50,7 +46,7 @@ export default function useChatSocket(auth) {
           initAudioCall(signal.payload);
       });
     });
-  }, [auth]);
+  }, [auth?.userId]);
 
   return { presenceMap, incomingCall, setIncomingCall };
 }

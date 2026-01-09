@@ -1,13 +1,5 @@
 /* =====================================================
-   CHAT ROOMS HOOK – E2EE SAFE (FINAL)
-   -----------------------------------------------------
-   - REST = source of truth for history
-   - WebSocket = real-time updates
-   - Supports optimistic UI
-   - Reload-safe
-   - Prevents duplicates
-   - Prevents message loss
-   - FIXES: old chat showing on room switch
+   CHAT ROOMS HOOK – E2EE SAFE (FINAL + HARDENED)
    ===================================================== */
 
 import { useRef, useState } from "react";
@@ -19,9 +11,9 @@ import {
 } from "../../services/websocket";
 import { markMessageAsRead } from "../../api/messageApi";
 
-/* =====================================================
+/* ===============================
    🔧 MESSAGE NORMALIZER
-   ===================================================== */
+   =============================== */
 function normalizeMessage(m) {
   return {
     id: m.id,
@@ -50,24 +42,21 @@ export default function useChatRooms(auth) {
   const [messages, setMessages] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
 
-  // 🔥 Track currently subscribed room (prevents duplicate WS subs)
+  // 🔥 Track subscribed room
   const subscribedRoomRef = useRef(null);
 
-  /* =====================================================
-     🔄 LOAD CHAT HISTORY (REST = SOURCE OF TRUTH)
-     ===================================================== */
-  const loadChatHistory = async (roomId) => {
+  /* ===============================
+     🔄 LOAD CHAT HISTORY (REST)
+     =============================== */
+  const loadChatHistory = async (chatRoomId) => {
     try {
-      const res = await api.get(`/message/chat/${roomId}`);
+      const res = await api.get(`/message/chat/${chatRoomId}`);
       const normalized = res.data.map(normalizeMessage);
 
       setMessages((prev) => {
         const map = new Map();
-
-        // keep WS messages if they arrived early
         prev.forEach((m) => map.set(m.id, m));
         normalized.forEach((m) => map.set(m.id, m));
-
         return Array.from(map.values()).sort(
           (a, b) =>
             new Date(a.timestamp) - new Date(b.timestamp)
@@ -85,38 +74,38 @@ export default function useChatRooms(auth) {
     }
   };
 
-  /* =====================================================
-     📡 SUBSCRIBE TO CHAT ROOM (SAFE + FIXED)
-     ===================================================== */
-  const subscribeRoom = async (roomId) => {
-    if (!roomId) return;
+  /* ===============================
+     📡 SUBSCRIBE TO ROOM (SAFE)
+     =============================== */
+  const subscribeRoom = async (chatRoomId) => {
+    if (!chatRoomId) return;
 
     // 🛑 Prevent duplicate subscription
-    if (subscribedRoomRef.current === roomId) return;
+    if (subscribedRoomRef.current === chatRoomId) return;
 
-    // 🔥 Clear messages immediately when switching rooms
+    // 🔥 Reset state on room switch
+    subscribedRoomRef.current = chatRoomId;
+    setActiveRoomId(chatRoomId);
     setMessages([]);
 
-    subscribedRoomRef.current = roomId;
-    setActiveRoomId(roomId);
-
     // 🔄 Load history FIRST
-    await loadChatHistory(roomId);
+    await loadChatHistory(chatRoomId);
 
-    // 📡 Subscribe to WebSocket
-    subscribeToChat(roomId, (msg) => {
+    // 📡 WebSocket subscription
+    subscribeToChat(chatRoomId, (msg) => {
       const normalized = normalizeMessage(msg);
 
+      // 🛑 HARD ROOM ISOLATION
+      if (normalized.chatRoomId !== chatRoomId) return;
+
       setMessages((prev) => {
-        // Remove matching optimistic temp message
+        // Remove optimistic temp
         const filtered = prev.filter(
           (m) =>
             !(
               String(m.id).startsWith("temp-") &&
               Number(m.sender.id) ===
-                Number(normalized.sender.id) &&
-              new Date(m.timestamp) <=
-                new Date(normalized.timestamp)
+                Number(normalized.sender.id)
             )
         );
 
@@ -128,7 +117,7 @@ export default function useChatRooms(auth) {
         return [...filtered, normalized];
       });
 
-      // ✅ Mark as read
+      // ✅ Mark read
       if (
         Number(normalized.sender.id) !==
         Number(auth.userId)
@@ -138,9 +127,9 @@ export default function useChatRooms(auth) {
     });
   };
 
-  /* =====================================================
-     ✉️ SEND MESSAGE (E2EE + OPTIMISTIC UI)
-     ===================================================== */
+  /* ===============================
+     ✉️ SEND MESSAGE (E2EE)
+     =============================== */
   const send = (payload) => {
     if (!activeRoomId || !payload) return;
     if (!isStompConnected()) return;
@@ -170,14 +159,13 @@ export default function useChatRooms(auth) {
     // 🔥 Optimistic UI
     setMessages((prev) => [...prev, tempMessage]);
 
-    // 🔥 Send to server
+    // 🔥 Send ONLY chatRoomId
     sendMessage(activeRoomId, payload);
   };
 
   return {
     messages,
     activeRoomId,
-    setActiveRoomId,
     subscribeRoom,
     send,
   };

@@ -17,7 +17,9 @@ import { markMessageAsRead } from "../../api/messageApi";
 function normalizeMessage(m) {
   return {
     id: m.id,
-    chatRoomId: m.chatRoomId ?? m.chatRoom?.id,
+
+    // 🔥 ONLY STRING roomId – NO FALLBACK
+    chatRoomId: m.chatRoomId,
 
     cipherText: m.cipherText ?? null,
     iv: m.iv ?? null,
@@ -37,6 +39,7 @@ function normalizeMessage(m) {
     timestamp: m.timestamp,
   };
 }
+
 
 export default function useChatRooms(auth) {
   const [messages, setMessages] = useState([]);

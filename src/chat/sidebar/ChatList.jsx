@@ -15,7 +15,13 @@ const ChatList = ({ chats, authUserId, onSelect }) => {
           className="user"
           onClick={() =>
             onSelect({
-              id: chat.otherUserId,
+              type: "PRIVATE",
+
+              // ✅ THE MOST IMPORTANT FIX
+              chatRoomId: chat.chatRoomId,
+
+              // 👤 user identity (NOT used for messaging)
+              userId: chat.otherUserId,
               username: chat.otherUsername,
               email: chat.otherUserEmail,
             })
@@ -43,5 +49,5 @@ const ChatList = ({ chats, authUserId, onSelect }) => {
   );
 };
 
-/* 🔥 PREVENT UNNECESSARY RERENDERS (IMPORTANT) */
+/* 🔥 PREVENT UNNECESSARY RERENDERS */
 export default React.memo(ChatList);

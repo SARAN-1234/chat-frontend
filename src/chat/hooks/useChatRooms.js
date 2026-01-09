@@ -44,7 +44,7 @@ export default function useChatRooms(auth) {
   const [messages, setMessages] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
 
-  // 🔥 Track subscribed room
+  // 🔥 Track subscribed room (prevents duplicate WS subscriptions)
   const subscribedRoomRef = useRef(null);
 
   /* ===============================
@@ -64,6 +64,7 @@ export default function useChatRooms(auth) {
         );
       });
 
+      // ✅ Mark messages as read
       normalized.forEach((msg) => {
         if (Number(msg.sender.id) !== Number(auth.userId)) {
           markMessageAsRead(msg.id).catch(() => {});
@@ -75,24 +76,30 @@ export default function useChatRooms(auth) {
   };
 
   /* ===============================
-     📡 SUBSCRIBE TO ROOM
+     📡 SUBSCRIBE TO ROOM (WS)
      =============================== */
   const subscribeRoom = async (chatRoomId) => {
     if (!chatRoomId) return;
+
+    // 🛑 Prevent re-subscribing same room
     if (subscribedRoomRef.current === chatRoomId) return;
 
     subscribedRoomRef.current = chatRoomId;
     setActiveRoomId(chatRoomId);
     setMessages([]);
 
+    // 🔄 Load REST history first
     await loadChatHistory(chatRoomId);
 
+    // 📡 WebSocket subscribe
     subscribeToChat(chatRoomId, (msg) => {
       const normalized = normalizeMessage(msg);
 
+      // 🛑 HARD ROOM ISOLATION
       if (normalized.chatRoomId !== chatRoomId) return;
 
       setMessages((prev) => {
+        // Remove optimistic temp message
         const filtered = prev.filter(
           (m) =>
             !(
@@ -101,6 +108,7 @@ export default function useChatRooms(auth) {
             )
         );
 
+        // Prevent duplicates
         if (filtered.some((m) => m.id === normalized.id)) {
           return filtered;
         }
@@ -108,6 +116,7 @@ export default function useChatRooms(auth) {
         return [...filtered, normalized];
       });
 
+      // ✅ Mark read
       if (Number(normalized.sender.id) !== Number(auth.userId)) {
         markMessageAsRead(normalized.id).catch(() => {});
       }
@@ -115,7 +124,7 @@ export default function useChatRooms(auth) {
   };
 
   /* ===============================
-     ✉️ SEND MESSAGE (🔥 FIXED)
+     ✉️ SEND MESSAGE (🔥 FINAL FIX)
      =============================== */
   const send = (payload) => {
     if (!activeRoomId || !payload) return;
@@ -143,14 +152,13 @@ export default function useChatRooms(auth) {
       timestamp: new Date().toISOString(),
     };
 
+    // 🔥 Optimistic UI
     setMessages((prev) => [...prev, tempMessage]);
 
-    // 🔥🔥🔥 THIS IS THE FIX 🔥🔥🔥
-    sendMessage(
-      activeRoomId,
-      payload,
-      payload.receiverId ?? null
-    );
+    // ✅ IMPORTANT:
+    // receiverId MUST be inside payload
+    // websocket.js will serialize it into JSON
+    sendMessage(activeRoomId, payload);
   };
 
   return {

@@ -77,7 +77,7 @@ const MessageInput = ({
         const encryptedAesKeyForReceiver =
           await encryptAESKey(receiverRsaKey, aesKey);
 
-        // 🔥 SEND receiverId FOR FIRST MESSAGE
+        // 🔥 receiverId REQUIRED for first PRIVATE message
         onSend({
           chatRoomId: selectedUser.chatRoomId, // ✅ STRING
           receiverId: selectedUser.userId,     // 🔥 REQUIRED

@@ -9,7 +9,7 @@ let callSubscription = null;
 
 let onConnectedQueue = new Set();
 
-// ✅ Correct because server.servlet.context-path=/api
+// ✅ Because server.servlet.context-path=/api
 const WS_URL = "https://chat-backend-fup5.onrender.com/api/ws";
 
 /* ===============================
@@ -96,9 +96,9 @@ export function subscribeToChat(roomId, onMessage) {
 }
 
 /* ===============================
-   SEND MESSAGE  ✅ FINAL FIX
+   SEND MESSAGE ✅ FINAL & CORRECT
    =============================== */
-export function sendMessage(roomId, payload, receiverId = null) {
+export function sendMessage(roomId, payload) {
   if (!isStompConnected()) {
     console.warn("⚠️ STOMP not connected");
     return;
@@ -112,13 +112,11 @@ export function sendMessage(roomId, payload, receiverId = null) {
 
   console.log("📤 SENDING MESSAGE", {
     roomId,
-    receiverId,
     payload,
   });
 
   client.publish({
     destination: "/app/chat.send",
-
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -126,14 +124,18 @@ export function sendMessage(roomId, payload, receiverId = null) {
     body: JSON.stringify({
       chatRoomId: roomId,
 
-      // 🔥 CRITICAL: required ONLY for first PRIVATE message
-      receiverId: receiverId ?? null,
+      // 🔥 receiverId ONLY from payload (PRIVATE first message)
+      receiverId: payload.receiverId ?? null,
 
       cipherText: payload.cipherText,
       iv: payload.iv,
-      encryptedAesKeyForSender: payload.encryptedAesKeyForSender ?? null,
+
+      encryptedAesKeyForSender:
+        payload.encryptedAesKeyForSender ?? null,
+
       encryptedAesKeyForReceiver:
         payload.encryptedAesKeyForReceiver ?? null,
+
       type: payload.type ?? "TEXT",
     }),
   });

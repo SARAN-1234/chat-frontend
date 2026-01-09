@@ -96,7 +96,7 @@ export function subscribeToChat(roomId, onMessage) {
 }
 
 /* ===============================
-   SEND MESSAGE ✅ FINAL & CORRECT
+   SEND MESSAGE (🔥 HARDENED)
    =============================== */
 export function sendMessage(roomId, payload) {
   if (!isStompConnected()) {
@@ -110,9 +110,21 @@ export function sendMessage(roomId, payload) {
     return;
   }
 
+  /**
+   * 🔥 CRITICAL GUARD
+   * First private message MUST have receiverId
+   */
+  if (!roomId && !payload?.receiverId) {
+    console.error(
+      "🚫 BLOCKED SEND: roomId and receiverId both missing",
+      payload
+    );
+    return;
+  }
+
   console.log("📤 SENDING MESSAGE", {
     roomId,
-    payload,
+    receiverId: payload.receiverId ?? null,
   });
 
   client.publish({
@@ -122,9 +134,9 @@ export function sendMessage(roomId, payload) {
     },
 
     body: JSON.stringify({
-      chatRoomId: roomId,
+      chatRoomId: roomId ?? null,
 
-      // 🔥 receiverId ONLY from payload (PRIVATE first message)
+      // 🔥 ALWAYS explicit
       receiverId: payload.receiverId ?? null,
 
       cipherText: payload.cipherText,

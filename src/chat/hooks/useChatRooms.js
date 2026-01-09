@@ -1,5 +1,5 @@
 /* =====================================================
-   CHAT ROOMS HOOK – E2EE SAFE (FINAL + HARDENED)
+   CHAT ROOMS HOOK – E2EE SAFE (FINAL, CORRECTED)
    ===================================================== */
 
 import { useRef, useState } from "react";
@@ -17,8 +17,6 @@ import { markMessageAsRead } from "../../api/messageApi";
 function normalizeMessage(m) {
   return {
     id: m.id,
-
-    // 🔥 ONLY STRING roomId – NO FALLBACK
     chatRoomId: m.chatRoomId,
 
     cipherText: m.cipherText ?? null,
@@ -44,7 +42,7 @@ export default function useChatRooms(auth) {
   const [messages, setMessages] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
 
-  // 🔥 Track subscribed room (prevents duplicate WS subscriptions)
+  // 🔥 Prevent duplicate subscriptions
   const subscribedRoomRef = useRef(null);
 
   /* ===============================
@@ -55,14 +53,7 @@ export default function useChatRooms(auth) {
       const res = await api.get(`/message/chat/${chatRoomId}`);
       const normalized = res.data.map(normalizeMessage);
 
-      setMessages((prev) => {
-        const map = new Map();
-        prev.forEach((m) => map.set(m.id, m));
-        normalized.forEach((m) => map.set(m.id, m));
-        return Array.from(map.values()).sort(
-          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-        );
-      });
+      setMessages(normalized);
 
       // ✅ Mark messages as read
       normalized.forEach((msg) => {
@@ -81,7 +72,7 @@ export default function useChatRooms(auth) {
   const subscribeRoom = async (chatRoomId) => {
     if (!chatRoomId) return;
 
-    // 🛑 Prevent re-subscribing same room
+    // 🛑 Avoid re-subscribing same room
     if (subscribedRoomRef.current === chatRoomId) return;
 
     subscribedRoomRef.current = chatRoomId;
@@ -95,11 +86,11 @@ export default function useChatRooms(auth) {
     subscribeToChat(chatRoomId, (msg) => {
       const normalized = normalizeMessage(msg);
 
-      // 🛑 HARD ROOM ISOLATION
+      // 🛑 Hard room isolation
       if (normalized.chatRoomId !== chatRoomId) return;
 
       setMessages((prev) => {
-        // Remove optimistic temp message
+        // Remove optimistic temp message from same sender
         const filtered = prev.filter(
           (m) =>
             !(
@@ -124,41 +115,53 @@ export default function useChatRooms(auth) {
   };
 
   /* ===============================
-     ✉️ SEND MESSAGE (🔥 FINAL FIX)
+     ✉️ SEND MESSAGE (🔥 FIXED)
      =============================== */
   const send = (payload) => {
-    if (!activeRoomId || !payload) return;
+    if (!payload) return;
     if (!isStompConnected()) return;
 
-    const tempMessage = {
-      id: `temp-${Date.now()}`,
-      chatRoomId: activeRoomId,
+    /**
+     * 🔥 CRITICAL FIX
+     * First private message has:
+     *   - activeRoomId === null
+     *   - payload.receiverId EXISTS
+     * Backend will create the room.
+     */
+    const roomIdToSend =
+      payload.chatRoomId ?? activeRoomId ?? null;
 
-      cipherText: payload.cipherText,
-      iv: payload.iv,
+    /* ===============================
+       🔮 Optimistic UI (ONLY when room exists)
+       =============================== */
+    if (activeRoomId) {
+      const tempMessage = {
+        id: `temp-${Date.now()}`,
+        chatRoomId: activeRoomId,
 
-      encryptedAesKeyForSender:
-        payload.encryptedAesKeyForSender ?? null,
-      encryptedAesKeyForReceiver:
-        payload.encryptedAesKeyForReceiver ?? null,
+        cipherText: payload.cipherText,
+        iv: payload.iv,
 
-      sender: {
-        id: auth.userId,
-        username: auth.username,
-      },
+        encryptedAesKeyForSender:
+          payload.encryptedAesKeyForSender ?? null,
+        encryptedAesKeyForReceiver:
+          payload.encryptedAesKeyForReceiver ?? null,
 
-      type: payload.type ?? "TEXT",
-      status: "SENT",
-      timestamp: new Date().toISOString(),
-    };
+        sender: {
+          id: auth.userId,
+          username: auth.username,
+        },
 
-    // 🔥 Optimistic UI
-    setMessages((prev) => [...prev, tempMessage]);
+        type: payload.type ?? "TEXT",
+        status: "SENT",
+        timestamp: new Date().toISOString(),
+      };
 
-    // ✅ IMPORTANT:
-    // receiverId MUST be inside payload
-    // websocket.js will serialize it into JSON
-    sendMessage(activeRoomId, payload);
+      setMessages((prev) => [...prev, tempMessage]);
+    }
+
+    // 📡 SEND TO BACKEND (receiverId PRESERVED)
+    sendMessage(roomIdToSend, payload);
   };
 
   return {

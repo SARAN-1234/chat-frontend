@@ -68,23 +68,58 @@ const ChatPage = () => {
      👤 USER / GROUP SELECTION (FINAL)
      =============================== */
   const handleSelectUser = useCallback((payload) => {
-    let normalized = null;
+  let normalized = null;
 
-    /* ---------- PRIVATE CHAT ---------- */
-    if (payload.type === "PRIVATE") {
-      normalized = {
-        type: "PRIVATE",
+  /* ---------- PRIVATE CHAT ---------- */
+  if (payload.type === "PRIVATE") {
+    normalized = {
+      type: "PRIVATE",
 
-        // 🔥 SINGLE SOURCE OF TRUTH (STRING roomId)
-        roomId: payload.roomId,
+      // 🔥 ALWAYS use chatRoomId (string | null)
+      chatRoomId: payload.chatRoomId ?? null,
 
-        // 👤 user identity
-        userId: payload.id,
-        username: payload.username,
-        email: payload.email,
-        publicKey: payload.publicKey,
-      };
-    }
+      // 👤 Receiver identity
+      userId: payload.userId,
+      username: payload.username,
+      email: payload.email,
+      publicKey: payload.publicKey,
+    };
+  }
+
+  /* ---------- GROUP CHAT ---------- */
+  if (payload.type === "GROUP") {
+    normalized = {
+      type: "GROUP",
+
+      chatRoomId: payload.chatRoomId,
+
+      name: payload.name,
+      encryptedGroupKeys: payload.encryptedGroupKeys ?? {},
+    };
+  }
+
+  if (!normalized) {
+    console.error("❌ Invalid chat selection payload:", payload);
+    return;
+  }
+
+  setSelectedUser(normalized);
+
+  // 🔥 IMPORTANT
+  // DO NOT force activeRoomId for FIRST private message
+  if (normalized.chatRoomId) {
+    setActiveRoomId(normalized.chatRoomId);
+  }
+
+  setShowAiEmail(false);
+  setShowGroupInfo(false);
+
+  localStorage.setItem(
+    "lastChat",
+    JSON.stringify({ chatRoomId: normalized.chatRoomId })
+  );
+}, [setActiveRoomId]);
+
 
     /* ---------- GROUP CHAT ---------- */
     if (payload.type === "GROUP") {

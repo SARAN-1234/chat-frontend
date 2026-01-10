@@ -65,93 +65,61 @@ const ChatPage = () => {
   } = useChatRooms(auth);
 
   /* ===============================
-     👤 USER / GROUP SELECTION (FINAL)
+     👤 USER / GROUP SELECTION
      =============================== */
-  const handleSelectUser = useCallback((payload) => {
-  let normalized = null;
+  const handleSelectUser = useCallback(
+    (payload) => {
+      let normalized = null;
 
-  /* ---------- PRIVATE CHAT ---------- */
-  if (payload.type === "PRIVATE") {
-    normalized = {
-      type: "PRIVATE",
+      /* ---------- PRIVATE CHAT ---------- */
+      if (payload.type === "PRIVATE") {
+        normalized = {
+          type: "PRIVATE",
 
-      // 🔥 ALWAYS use chatRoomId (string | null)
-      chatRoomId: payload.chatRoomId ?? null,
+          // ✅ string | null (first message)
+          chatRoomId: payload.chatRoomId ?? null,
 
-      // 👤 Receiver identity
-      userId: payload.userId,
-      username: payload.username,
-      email: payload.email,
-      publicKey: payload.publicKey,
-    };
-  }
+          userId: payload.userId,
+          username: payload.username,
+          email: payload.email,
+          publicKey: payload.publicKey,
+        };
+      }
 
-  /* ---------- GROUP CHAT ---------- */
-  if (payload.type === "GROUP") {
-    normalized = {
-      type: "GROUP",
+      /* ---------- GROUP CHAT ---------- */
+      if (payload.type === "GROUP") {
+        normalized = {
+          type: "GROUP",
 
-      chatRoomId: payload.chatRoomId,
+          chatRoomId: payload.chatRoomId,
 
-      name: payload.name,
-      encryptedGroupKeys: payload.encryptedGroupKeys ?? {},
-    };
-  }
+          name: payload.name,
+          encryptedGroupKeys: payload.encryptedGroupKeys ?? {},
+        };
+      }
 
-  if (!normalized) {
-    console.error("❌ Invalid chat selection payload:", payload);
-    return;
-  }
+      if (!normalized) {
+        console.error("❌ Invalid chat selection payload:", payload);
+        return;
+      }
 
-  setSelectedUser(normalized);
+      setSelectedUser(normalized);
 
-  // 🔥 IMPORTANT
-  // DO NOT force activeRoomId for FIRST private message
-  if (normalized.chatRoomId) {
-    setActiveRoomId(normalized.chatRoomId);
-  }
+      // 🔥 DO NOT force room for first private message
+      if (normalized.chatRoomId) {
+        setActiveRoomId(normalized.chatRoomId);
+      }
 
-  setShowAiEmail(false);
-  setShowGroupInfo(false);
+      setShowAiEmail(false);
+      setShowGroupInfo(false);
 
-  localStorage.setItem(
-    "lastChat",
-    JSON.stringify({ chatRoomId: normalized.chatRoomId })
+      localStorage.setItem(
+        "lastChat",
+        JSON.stringify({ chatRoomId: normalized.chatRoomId })
+      );
+    },
+    [setActiveRoomId]
   );
-}, [setActiveRoomId]);
-
-
-    /* ---------- GROUP CHAT ---------- */
-    if (payload.type === "GROUP") {
-      normalized = {
-        type: "GROUP",
-
-        // 🔥 group.roomId (STRING)
-        roomId: payload.roomId,
-
-        name: payload.name,
-        encryptedGroupKeys: payload.encryptedGroupKeys ?? {},
-      };
-    }
-
-    if (!normalized?.roomId) {
-      console.error("❌ Invalid chat selection payload:", payload);
-      return;
-    }
-
-    setSelectedUser(normalized);
-    setActiveRoomId(normalized.roomId);
-
-    // UI cleanup
-    setShowAiEmail(false);
-    setShowGroupInfo(false);
-
-    // Persist ONLY roomId
-    localStorage.setItem(
-      "lastChat",
-      JSON.stringify({ roomId: normalized.roomId })
-    );
-  }, [setActiveRoomId]);
 
   /* ===============================
      🔄 RESTORE LAST ROOM
@@ -161,9 +129,9 @@ const ChatPage = () => {
     if (!saved) return;
 
     try {
-      const { roomId } = JSON.parse(saved);
-      if (roomId) {
-        setActiveRoomId(roomId);
+      const { chatRoomId } = JSON.parse(saved);
+      if (chatRoomId) {
+        setActiveRoomId(chatRoomId);
       }
     } catch {
       localStorage.removeItem("lastChat");
@@ -188,14 +156,11 @@ const ChatPage = () => {
         <ChatWindow
           messages={messages}
           selectedUser={selectedUser}
-
-          /* ✅ Presence ONLY for private chats */
           presence={
             selectedUser?.type === "PRIVATE"
               ? presenceMap?.[Number(selectedUser.userId)]
               : null
           }
-
           onSend={send}
           onToggleAi={() => setShowAiEmail((p) => !p)}
           onToggleGroupInfo={() =>

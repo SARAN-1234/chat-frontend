@@ -10,21 +10,11 @@ import api from "../../api/api";
 export default function useChatSocket(auth) {
   const [presenceMap, setPresenceMap] = useState({});
   const [incomingCall, setIncomingCall] = useState(null);
-
-  const connectingRef = useRef(false); // 🔥 NEW
   const connectedRef = useRef(false);
 
   useEffect(() => {
-    if (!auth?.userId) return;
+    if (!auth?.userId || connectedRef.current) return;
 
-    // 🔥 allow retry if connection failed before
-    if (connectingRef.current || connectedRef.current) return;
-
-    connectingRef.current = true;
-
-    console.log("🔌 Initializing WebSocket for user", auth.userId);
-
-    // Load presence snapshot (REST)
     api.get("/users/presence").then((res) => {
       const initial = {};
       res.data.forEach((p) => {
@@ -34,10 +24,7 @@ export default function useChatSocket(auth) {
     });
 
     connectWebSocket(() => {
-      console.log("✅ WebSocket fully connected");
-
       connectedRef.current = true;
-      connectingRef.current = false;
 
       subscribeToPresence((data) => {
         setPresenceMap((prev) => ({
@@ -59,16 +46,6 @@ export default function useChatSocket(auth) {
           initAudioCall(signal.payload);
       });
     });
-
-    // 🔁 retry safeguard
-    const retryTimer = setTimeout(() => {
-      if (!connectedRef.current) {
-        console.warn("🔁 Retrying WebSocket connection");
-        connectingRef.current = false;
-      }
-    }, 5000);
-
-    return () => clearTimeout(retryTimer);
   }, [auth?.userId]);
 
   return { presenceMap, incomingCall, setIncomingCall };

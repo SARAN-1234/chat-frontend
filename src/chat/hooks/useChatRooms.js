@@ -1,7 +1,3 @@
-/* =====================================================
-   CHAT ROOMS HOOK – E2EE SAFE (FINAL – PRODUCTION)
-   ===================================================== */
-
 import { useRef, useState } from "react";
 import api from "../../api/api";
 import {
@@ -11,27 +7,18 @@ import {
 } from "../../services/websocket";
 import { markMessageAsRead } from "../../api/messageApi";
 
-/* ===============================
-   🔧 MESSAGE NORMALIZER
-   =============================== */
 function normalizeMessage(m) {
   return {
     id: m.id,
     chatRoomId: m.chatRoomId,
-
     cipherText: m.cipherText ?? null,
     iv: m.iv ?? null,
-
-    encryptedAesKeyForSender:
-      m.encryptedAesKeyForSender ?? null,
-    encryptedAesKeyForReceiver:
-      m.encryptedAesKeyForReceiver ?? null,
-
+    encryptedAesKeyForSender: m.encryptedAesKeyForSender ?? null,
+    encryptedAesKeyForReceiver: m.encryptedAesKeyForReceiver ?? null,
     sender: m.sender ?? {
       id: m.senderId,
       username: m.senderUsername,
     },
-
     type: m.type ?? "TEXT",
     status: m.status ?? "SENT",
     timestamp: m.timestamp,
@@ -42,37 +29,27 @@ export default function useChatRooms(auth) {
   const [messages, setMessages] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
 
-  // 🔥 Prevent duplicate subscriptions
+  const activeRoomRef = useRef(null);
   const subscribedRoomRef = useRef(null);
 
-  /* ===============================
-     🔄 LOAD CHAT HISTORY (REST)
-     =============================== */
   const loadChatHistory = async (roomId) => {
-    try {
-      const res = await api.get(`/message/chat/${roomId}`);
-      const normalized = res.data.map(normalizeMessage);
-      setMessages(normalized);
+    const res = await api.get(`/message/chat/${roomId}`);
+    const normalized = res.data.map(normalizeMessage);
+    setMessages(normalized);
 
-      normalized.forEach((msg) => {
-        if (Number(msg.sender.id) !== Number(auth.userId)) {
-          markMessageAsRead(msg.id).catch(() => {});
-        }
-      });
-    } catch (err) {
-      console.error("❌ Failed to load chat history", err);
-    }
+    normalized.forEach((msg) => {
+      if (Number(msg.sender.id) !== Number(auth.userId)) {
+        markMessageAsRead(msg.id).catch(() => {});
+      }
+    });
   };
 
-  /* ===============================
-     📡 SUBSCRIBE TO ROOM (WS)
-     =============================== */
   const subscribeRoom = async (roomId) => {
     if (!roomId) return;
-
     if (subscribedRoomRef.current === roomId) return;
 
     subscribedRoomRef.current = roomId;
+    activeRoomRef.current = roomId;
     setActiveRoomId(roomId);
     setMessages([]);
 
@@ -81,13 +58,19 @@ export default function useChatRooms(auth) {
     subscribeToChat(roomId, (msg) => {
       const normalized = normalizeMessage(msg);
 
-      /* 🔥 ADOPT ROOM ID AFTER FIRST MESSAGE */
-      if (!activeRoomId && normalized.chatRoomId) {
-        setActiveRoomId(normalized.chatRoomId);
+      // ✅ Adopt room after first private message
+      if (!activeRoomRef.current && normalized.chatRoomId) {
+        activeRoomRef.current = normalized.chatRoomId;
         subscribedRoomRef.current = normalized.chatRoomId;
+        setActiveRoomId(normalized.chatRoomId);
       }
 
-      if (normalized.chatRoomId !== roomId) return;
+      if (
+        activeRoomRef.current &&
+        normalized.chatRoomId !== activeRoomRef.current
+      ) {
+        return;
+      }
 
       setMessages((prev) => {
         const filtered = prev.filter(
@@ -111,52 +94,38 @@ export default function useChatRooms(auth) {
     });
   };
 
-  /* ===============================
-     ✉️ SEND MESSAGE (FINAL FIX)
-     =============================== */
   const send = (payload) => {
     if (!payload) return;
     if (!isStompConnected()) return;
 
-    // 🔥 Allow FIRST private message
     const roomIdToSend =
-      payload.chatRoomId ?? activeRoomId ?? null;
+      payload.chatRoomId ?? activeRoomRef.current ?? null;
 
-    /* 🔮 Optimistic UI ONLY for existing rooms */
-    if (activeRoomId) {
-      const tempMessage = {
-        id: `temp-${Date.now()}`,
-        chatRoomId: activeRoomId,
-
-        cipherText: payload.cipherText,
-        iv: payload.iv,
-
-        encryptedAesKeyForSender:
-          payload.encryptedAesKeyForSender ?? null,
-        encryptedAesKeyForReceiver:
-          payload.encryptedAesKeyForReceiver ?? null,
-
-        sender: {
-          id: auth.userId,
-          username: auth.username,
+    if (activeRoomRef.current) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `temp-${Date.now()}`,
+          chatRoomId: activeRoomRef.current,
+          cipherText: payload.cipherText,
+          iv: payload.iv,
+          encryptedAesKeyForSender:
+            payload.encryptedAesKeyForSender ?? null,
+          encryptedAesKeyForReceiver:
+            payload.encryptedAesKeyForReceiver ?? null,
+          sender: {
+            id: auth.userId,
+            username: auth.username,
+          },
+          type: payload.type ?? "TEXT",
+          status: "SENT",
+          timestamp: new Date().toISOString(),
         },
-
-        type: payload.type ?? "TEXT",
-        status: "SENT",
-        timestamp: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, tempMessage]);
+      ]);
     }
 
-    // 📡 SEND TO BACKEND
     sendMessage(roomIdToSend, payload);
   };
 
-  return {
-    messages,
-    activeRoomId,
-    subscribeRoom,
-    send,
-  };
+  return { messages, activeRoomId, subscribeRoom, send };
 }

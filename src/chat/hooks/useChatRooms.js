@@ -1,5 +1,5 @@
 /* =====================================================
-   CHAT ROOMS HOOK – E2EE SAFE (FINAL, CORRECTED)
+   CHAT ROOMS HOOK – E2EE SAFE (FINAL – PRODUCTION)
    ===================================================== */
 
 import { useRef, useState } from "react";
@@ -48,14 +48,12 @@ export default function useChatRooms(auth) {
   /* ===============================
      🔄 LOAD CHAT HISTORY (REST)
      =============================== */
-  const loadChatHistory = async (chatRoomId) => {
+  const loadChatHistory = async (roomId) => {
     try {
-      const res = await api.get(`/message/chat/${chatRoomId}`);
+      const res = await api.get(`/message/chat/${roomId}`);
       const normalized = res.data.map(normalizeMessage);
-
       setMessages(normalized);
 
-      // ✅ Mark messages as read
       normalized.forEach((msg) => {
         if (Number(msg.sender.id) !== Number(auth.userId)) {
           markMessageAsRead(msg.id).catch(() => {});
@@ -69,28 +67,29 @@ export default function useChatRooms(auth) {
   /* ===============================
      📡 SUBSCRIBE TO ROOM (WS)
      =============================== */
-  const subscribeRoom = async (chatRoomId) => {
-    if (!chatRoomId) return;
+  const subscribeRoom = async (roomId) => {
+    if (!roomId) return;
 
-    // 🛑 Avoid re-subscribing same room
-    if (subscribedRoomRef.current === chatRoomId) return;
+    if (subscribedRoomRef.current === roomId) return;
 
-    subscribedRoomRef.current = chatRoomId;
-    setActiveRoomId(chatRoomId);
+    subscribedRoomRef.current = roomId;
+    setActiveRoomId(roomId);
     setMessages([]);
 
-    // 🔄 Load REST history first
-    await loadChatHistory(chatRoomId);
+    await loadChatHistory(roomId);
 
-    // 📡 WebSocket subscribe
-    subscribeToChat(chatRoomId, (msg) => {
+    subscribeToChat(roomId, (msg) => {
       const normalized = normalizeMessage(msg);
 
-      // 🛑 Hard room isolation
-      if (normalized.chatRoomId !== chatRoomId) return;
+      /* 🔥 ADOPT ROOM ID AFTER FIRST MESSAGE */
+      if (!activeRoomId && normalized.chatRoomId) {
+        setActiveRoomId(normalized.chatRoomId);
+        subscribedRoomRef.current = normalized.chatRoomId;
+      }
+
+      if (normalized.chatRoomId !== roomId) return;
 
       setMessages((prev) => {
-        // Remove optimistic temp message from same sender
         const filtered = prev.filter(
           (m) =>
             !(
@@ -99,7 +98,6 @@ export default function useChatRooms(auth) {
             )
         );
 
-        // Prevent duplicates
         if (filtered.some((m) => m.id === normalized.id)) {
           return filtered;
         }
@@ -107,7 +105,6 @@ export default function useChatRooms(auth) {
         return [...filtered, normalized];
       });
 
-      // ✅ Mark read
       if (Number(normalized.sender.id) !== Number(auth.userId)) {
         markMessageAsRead(normalized.id).catch(() => {});
       }
@@ -115,25 +112,17 @@ export default function useChatRooms(auth) {
   };
 
   /* ===============================
-     ✉️ SEND MESSAGE (🔥 FIXED)
+     ✉️ SEND MESSAGE (FINAL FIX)
      =============================== */
   const send = (payload) => {
     if (!payload) return;
     if (!isStompConnected()) return;
 
-    /**
-     * 🔥 CRITICAL FIX
-     * First private message has:
-     *   - activeRoomId === null
-     *   - payload.receiverId EXISTS
-     * Backend will create the room.
-     */
+    // 🔥 Allow FIRST private message
     const roomIdToSend =
       payload.chatRoomId ?? activeRoomId ?? null;
 
-    /* ===============================
-       🔮 Optimistic UI (ONLY when room exists)
-       =============================== */
+    /* 🔮 Optimistic UI ONLY for existing rooms */
     if (activeRoomId) {
       const tempMessage = {
         id: `temp-${Date.now()}`,
@@ -160,7 +149,7 @@ export default function useChatRooms(auth) {
       setMessages((prev) => [...prev, tempMessage]);
     }
 
-    // 📡 SEND TO BACKEND (receiverId PRESERVED)
+    // 📡 SEND TO BACKEND
     sendMessage(roomIdToSend, payload);
   };
 

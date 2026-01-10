@@ -4,7 +4,7 @@ import {
   subscribeToChat,
   sendMessage,
   isStompConnected,
-} from "../../services/websocket";
+} from "../../services/websocket.js";
 import { markMessageAsRead } from "../../api/messageApi";
 
 function normalizeMessage(m) {
@@ -128,4 +128,5 @@ export default function useChatRooms(auth) {
   };
 
   return { messages, activeRoomId, subscribeRoom, send };
+
 }

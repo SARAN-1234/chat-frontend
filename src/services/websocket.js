@@ -15,16 +15,21 @@ const WS_URL = "https://chat-backend-fup5.onrender.com/api/ws";
    CONNECT WEBSOCKET
    =============================== */
 export function connectWebSocket(onConnected) {
-  if (client?.active || client?.connected) return;
+  if (client?.active || client?.connected) {
+    console.warn("⚠️ STOMP already active");
+    return;
+  }
 
   const token = localStorage.getItem("token");
-  if (!token) return;
+  if (!token) {
+    console.error("❌ JWT missing");
+    return;
+  }
+
+  console.log("🔌 Connecting STOMP →", WS_URL);
 
   client = new Client({
-    webSocketFactory: () =>
-      new SockJS(WS_URL, null, {
-        transports: ["websocket", "xhr-streaming", "xhr-polling"],
-      }),
+    webSocketFactory: () => new SockJS(WS_URL),
 
     connectHeaders: {
       Authorization: `Bearer ${token}`,
@@ -32,22 +37,39 @@ export function connectWebSocket(onConnected) {
 
     heartbeatIncoming: 10000,
     heartbeatOutgoing: 10000,
+    reconnectDelay: 3000,
 
     debug: (str) => console.log("STOMP:", str),
 
-    onConnect: () => {
+    onConnect: (frame) => {
+      console.log("✅ STOMP CONNECTED", frame.headers);
+
       onConnectedQueue.forEach((cb) => cb());
       onConnectedQueue.clear();
+
       onConnected?.();
+    },
+
+    onDisconnect: () => {
+      console.warn("❌ STOMP DISCONNECTED");
+    },
+
+    onStompError: (frame) => {
+      console.error("❌ STOMP ERROR", frame.headers, frame.body);
+    },
+
+    onWebSocketError: (err) => {
+      console.error("❌ WS ERROR", err);
+    },
+
+    onWebSocketClose: (evt) => {
+      console.warn("🔌 WS CLOSED", evt.code, evt.reason);
     },
   });
 
   client.activate();
 }
 
-export function isStompConnected() {
-  return client?.connected === true;
-}
 
 /* ===============================
    CHAT SUBSCRIBE

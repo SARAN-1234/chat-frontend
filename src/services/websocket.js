@@ -44,6 +44,7 @@ export function connectWebSocket(onConnected) {
     onConnect: (frame) => {
       console.log("✅ STOMP CONNECTED", frame.headers);
 
+      // 🔥 Flush queued actions
       onConnectedQueue.forEach((cb) => cb());
       onConnectedQueue.clear();
 
@@ -70,6 +71,12 @@ export function connectWebSocket(onConnected) {
   client.activate();
 }
 
+/* ===============================
+   ✅ REQUIRED EXPORT (FIX)
+   =============================== */
+export function isStompConnected() {
+  return client?.connected === true;
+}
 
 /* ===============================
    CHAT SUBSCRIBE
@@ -79,13 +86,20 @@ export function subscribeToChat(roomId, onMessage) {
 
   const subscribe = () => {
     chatSubscription?.unsubscribe();
+
+    console.log("📡 Subscribing to /topic/chat/" + roomId);
+
     chatSubscription = client.subscribe(
       `/topic/chat/${roomId}`,
-      (msg) => onMessage(JSON.parse(msg.body))
+      (msg) => {
+        console.log("📨 WS CHAT MESSAGE", msg.body);
+        onMessage(JSON.parse(msg.body));
+      }
     );
   };
 
   if (!isStompConnected()) {
+    console.warn("⏳ STOMP not ready, queue chat subscribe");
     onConnectedQueue.add(subscribe);
     return;
   }
@@ -94,11 +108,14 @@ export function subscribeToChat(roomId, onMessage) {
 }
 
 /* ===============================
-   ✅ PRESENCE SUBSCRIBE (MISSING FIX)
+   PRESENCE SUBSCRIBE
    =============================== */
 export function subscribeToPresence(onPresence) {
   const subscribe = () => {
     presenceSubscription?.unsubscribe();
+
+    console.log("📡 Subscribing to /topic/presence");
+
     presenceSubscription = client.subscribe(
       "/topic/presence",
       (msg) => onPresence(JSON.parse(msg.body))
@@ -114,28 +131,41 @@ export function subscribeToPresence(onPresence) {
 }
 
 /* ===============================
-   SEND MESSAGE
+   SEND MESSAGE (🔥 FIXED)
    =============================== */
 export function sendMessage(roomId, payload) {
-  if (!isStompConnected()) return;
-
-  client.publish({
-    destination: "/app/chat.send",
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
-    body: JSON.stringify({
-      chatRoomId: roomId ?? null,
+  const send = () => {
+    console.log("📤 WS SEND → /app/chat.send", {
+      roomId,
       receiverId: payload.receiverId ?? null,
-      cipherText: payload.cipherText,
-      iv: payload.iv,
-      encryptedAesKeyForSender:
-        payload.encryptedAesKeyForSender ?? null,
-      encryptedAesKeyForReceiver:
-        payload.encryptedAesKeyForReceiver ?? null,
-      type: payload.type ?? "TEXT",
-    }),
-  });
+    });
+
+    client.publish({
+      destination: "/app/chat.send",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({
+        chatRoomId: roomId ?? null,
+        receiverId: payload.receiverId ?? null,
+        cipherText: payload.cipherText,
+        iv: payload.iv,
+        encryptedAesKeyForSender:
+          payload.encryptedAesKeyForSender ?? null,
+        encryptedAesKeyForReceiver:
+          payload.encryptedAesKeyForReceiver ?? null,
+        type: payload.type ?? "TEXT",
+      }),
+    });
+  };
+
+  if (!isStompConnected()) {
+    console.warn("⏳ STOMP not connected → queue SEND");
+    onConnectedQueue.add(send);
+    return;
+  }
+
+  send();
 }
 
 /* ===============================
@@ -144,6 +174,9 @@ export function sendMessage(roomId, payload) {
 export function subscribeToCallSignals(onSignal) {
   const subscribe = () => {
     callSubscription?.unsubscribe();
+
+    console.log("📡 Subscribing to /user/queue/call");
+
     callSubscription = client.subscribe(
       "/user/queue/call",
       (msg) => onSignal(JSON.parse(msg.body))
@@ -161,6 +194,8 @@ export function subscribeToCallSignals(onSignal) {
 export function sendCallSignal(signal) {
   if (!isStompConnected()) return;
 
+  console.log("📤 WS CALL SIGNAL", signal);
+
   client.publish({
     destination: "/app/call.signal",
     headers: {
@@ -174,6 +209,8 @@ export function sendCallSignal(signal) {
    DISCONNECT
    =============================== */
 export function disconnectWebSocket() {
+  console.log("🔌 Disconnecting STOMP");
+
   chatSubscription?.unsubscribe();
   presenceSubscription?.unsubscribe();
   callSubscription?.unsubscribe();

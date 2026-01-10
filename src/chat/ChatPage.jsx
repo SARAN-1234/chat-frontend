@@ -76,7 +76,7 @@ const ChatPage = () => {
         normalized = {
           type: "PRIVATE",
 
-          // ✅ string | null (first message)
+          // string | null (null = first message)
           chatRoomId: payload.chatRoomId ?? null,
 
           userId: payload.userId,

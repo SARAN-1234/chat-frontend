@@ -75,10 +75,7 @@ const ChatPage = () => {
       if (payload.type === "PRIVATE") {
         normalized = {
           type: "PRIVATE",
-
-          // string | null (null = first message)
-          chatRoomId: payload.chatRoomId ?? null,
-
+          chatRoomId: payload.chatRoomId ?? null, // null = first message
           userId: payload.userId,
           username: payload.username,
           email: payload.email,
@@ -90,9 +87,7 @@ const ChatPage = () => {
       if (payload.type === "GROUP") {
         normalized = {
           type: "GROUP",
-
           chatRoomId: payload.chatRoomId,
-
           name: payload.name,
           encryptedGroupKeys: payload.encryptedGroupKeys ?? {},
         };
@@ -105,7 +100,7 @@ const ChatPage = () => {
 
       setSelectedUser(normalized);
 
-      // 🔥 DO NOT force room for first private message
+      // 🔥 DO NOT force roomId for first private message
       if (normalized.chatRoomId) {
         setActiveRoomId(normalized.chatRoomId);
       }

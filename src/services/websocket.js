@@ -9,23 +9,16 @@ let callSubscription = null;
 
 let onConnectedQueue = new Set();
 
-// ✅ Because server.servlet.context-path=/api
 const WS_URL = "https://chat-backend-fup5.onrender.com/api/ws";
 
 /* ===============================
    CONNECT WEBSOCKET
    =============================== */
 export function connectWebSocket(onConnected) {
-  if (client?.active || client?.connected) {
-    console.warn("⚠️ STOMP already active");
-    return;
-  }
+  if (client?.active || client?.connected) return;
 
   const token = localStorage.getItem("token");
-  if (!token) {
-    console.error("❌ JWT missing");
-    return;
-  }
+  if (!token) return;
 
   client = new Client({
     webSocketFactory: () =>
@@ -37,27 +30,15 @@ export function connectWebSocket(onConnected) {
       Authorization: `Bearer ${token}`,
     },
 
-    reconnectDelay: 0,
     heartbeatIncoming: 10000,
     heartbeatOutgoing: 10000,
 
     debug: (str) => console.log("STOMP:", str),
 
     onConnect: () => {
-      console.log("✅ STOMP CONNECTED");
-
       onConnectedQueue.forEach((cb) => cb());
       onConnectedQueue.clear();
-
       onConnected?.();
-    },
-
-    onDisconnect: () => {
-      console.warn("❌ STOMP DISCONNECTED");
-    },
-
-    onStompError: (err) => {
-      console.error("❌ STOMP ERROR", err);
     },
   });
 
@@ -76,14 +57,9 @@ export function subscribeToChat(roomId, onMessage) {
 
   const subscribe = () => {
     chatSubscription?.unsubscribe();
-
     chatSubscription = client.subscribe(
       `/topic/chat/${roomId}`,
-      (msg) => {
-        const parsed = JSON.parse(msg.body);
-        console.log("📨 CHAT:", parsed);
-        onMessage(parsed);
-      }
+      (msg) => onMessage(JSON.parse(msg.body))
     );
   };
 
@@ -96,58 +72,45 @@ export function subscribeToChat(roomId, onMessage) {
 }
 
 /* ===============================
-   SEND MESSAGE (🔥 HARDENED)
+   ✅ PRESENCE SUBSCRIBE (MISSING FIX)
+   =============================== */
+export function subscribeToPresence(onPresence) {
+  const subscribe = () => {
+    presenceSubscription?.unsubscribe();
+    presenceSubscription = client.subscribe(
+      "/topic/presence",
+      (msg) => onPresence(JSON.parse(msg.body))
+    );
+  };
+
+  if (!isStompConnected()) {
+    onConnectedQueue.add(subscribe);
+    return;
+  }
+
+  subscribe();
+}
+
+/* ===============================
+   SEND MESSAGE
    =============================== */
 export function sendMessage(roomId, payload) {
-  if (!isStompConnected()) {
-    console.warn("⚠️ STOMP not connected");
-    return;
-  }
-
-  const token = localStorage.getItem("token");
-  if (!token) {
-    console.error("❌ JWT missing for SEND");
-    return;
-  }
-
-  /**
-   * 🔥 CRITICAL GUARD
-   * First private message MUST have receiverId
-   */
-  if (!roomId && !payload?.receiverId) {
-    console.error(
-      "🚫 BLOCKED SEND: roomId and receiverId both missing",
-      payload
-    );
-    return;
-  }
-
-  console.log("📤 SENDING MESSAGE", {
-    roomId,
-    receiverId: payload.receiverId ?? null,
-  });
+  if (!isStompConnected()) return;
 
   client.publish({
     destination: "/app/chat.send",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
     },
-
     body: JSON.stringify({
       chatRoomId: roomId ?? null,
-
-      // 🔥 ALWAYS explicit
       receiverId: payload.receiverId ?? null,
-
       cipherText: payload.cipherText,
       iv: payload.iv,
-
       encryptedAesKeyForSender:
         payload.encryptedAesKeyForSender ?? null,
-
       encryptedAesKeyForReceiver:
         payload.encryptedAesKeyForReceiver ?? null,
-
       type: payload.type ?? "TEXT",
     }),
   });
@@ -159,7 +122,6 @@ export function sendMessage(roomId, payload) {
 export function subscribeToCallSignals(onSignal) {
   const subscribe = () => {
     callSubscription?.unsubscribe();
-
     callSubscription = client.subscribe(
       "/user/queue/call",
       (msg) => onSignal(JSON.parse(msg.body))
@@ -177,13 +139,10 @@ export function subscribeToCallSignals(onSignal) {
 export function sendCallSignal(signal) {
   if (!isStompConnected()) return;
 
-  const token = localStorage.getItem("token");
-  if (!token) return;
-
   client.publish({
     destination: "/app/call.signal",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
     },
     body: JSON.stringify(signal),
   });
@@ -205,6 +164,4 @@ export function disconnectWebSocket() {
 
   client?.deactivate();
   client = null;
-
-  console.log("🔌 STOMP fully disconnected");
 }
